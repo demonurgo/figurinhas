@@ -243,16 +243,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data.user) {
         console.log('Signup successful for:', data.user.email);
         
-        // Update profile with email field if not already added by the trigger
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ email: email })
-          .eq('id', data.user.id);
-          
-        if (updateError) {
-          console.error('Error updating profile with email:', updateError);
-        }
-        
         toast({
           title: "Conta criada com sucesso!",
           description: `Bem-vindo, ${name}!`,
