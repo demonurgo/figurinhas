@@ -10,6 +10,7 @@ interface Profile {
   username: string;
   full_name: string | null;
   avatar_url: string | null;
+  email?: string;
 }
 
 interface AuthContextType {
@@ -54,8 +55,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Create default admin user
+  const createDefaultAdmin = async () => {
+    try {
+      // Check if admin@test.com already exists
+      const { data: existingUser } = await supabase.auth.signInWithPassword({
+        email: 'admin@test.com',
+        password: 'admin123'
+      });
+      
+      if (existingUser.user) {
+        console.log('Default admin already exists');
+        return;
+      }
+      
+      // Create admin user
+      const { data, error } = await supabase.auth.signUp({
+        email: 'admin@test.com',
+        password: 'admin123',
+        options: {
+          data: {
+            name: 'Admin User'
+          }
+        }
+      });
+      
+      if (error) {
+        console.error('Error creating default admin:', error);
+        return;
+      }
+      
+      console.log('Default admin created successfully');
+      
+    } catch (error) {
+      console.error('Error in createDefaultAdmin:', error);
+    }
+  };
+
   // Initialize auth state
   useEffect(() => {
+    // Create default admin on initial load
+    createDefaultAdmin();
+    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
@@ -94,12 +135,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       
+      console.log('Attempting login for:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
       
       if (error) {
+        console.error('Login error from Supabase:', error);
         toast({
           variant: "destructive",
           title: "Falha no login",
@@ -109,6 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       if (data.user) {
+        console.log('Login successful for:', data.user.email);
         toast({
           title: "Login bem-sucedido!",
           description: `Bem-vindo de volta!`,
@@ -135,17 +180,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       
+      // Add validation
+      if (!email.includes('@')) {
+        toast({
+          variant: "destructive",
+          title: "Email inválido",
+          description: "Por favor, forneça um email válido.",
+        });
+        return false;
+      }
+      
+      if (password.length < 6) {
+        toast({
+          variant: "destructive",
+          title: "Senha muito curta",
+          description: "A senha deve ter pelo menos 6 caracteres.",
+        });
+        return false;
+      }
+      
+      console.log('Attempting signup for:', email, 'with name:', name);
+      
+      // Check if email already exists
+      const { data: existingUsers, error: checkError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .limit(1);
+        
+      if (checkError) {
+        console.error('Error checking existing user:', checkError);
+      } else if (existingUsers && existingUsers.length > 0) {
+        toast({
+          variant: "destructive",
+          title: "Email já registrado",
+          description: "Este email já está sendo usado. Tente fazer login.",
+        });
+        return false;
+      }
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            name
+            name,
+            email
           }
         }
       });
       
       if (error) {
+        console.error('Signup error from Supabase:', error);
         toast({
           variant: "destructive",
           title: "Falha no cadastro",
@@ -155,6 +241,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       if (data.user) {
+        console.log('Signup successful for:', data.user.email);
+        
+        // Update profile with email field if not already added by the trigger
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ email: email })
+          .eq('id', data.user.id);
+          
+        if (updateError) {
+          console.error('Error updating profile with email:', updateError);
+        }
+        
         toast({
           title: "Conta criada com sucesso!",
           description: `Bem-vindo, ${name}!`,

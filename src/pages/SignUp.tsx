@@ -6,28 +6,42 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const SignUp = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
+  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signup } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPasswordError("");
+    setError("");
+    
+    // Validação
+    if (!name || !email || !password || !confirmPassword) {
+      setError("Por favor, preencha todos os campos.");
+      return;
+    }
     
     if (password !== confirmPassword) {
-      setPasswordError("As senhas não conferem");
+      setError("As senhas não conferem");
+      return;
+    }
+    
+    if (password.length < 6) {
+      setError("A senha deve ter pelo menos 6 caracteres");
       return;
     }
     
     setIsSubmitting(true);
     
+    console.log("Tentando cadastrar:", email);
     const success = await signup(name, email, password);
     
     if (success) {
@@ -54,6 +68,13 @@ const SignUp = () => {
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              
               <div className="space-y-2">
                 <Label htmlFor="name">Nome</Label>
                 <Input
@@ -83,7 +104,9 @@ const SignUp = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  minLength={6}
                 />
+                <p className="text-xs text-gray-500">Mínimo de 6 caracteres</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirme a Senha</Label>
@@ -94,10 +117,6 @@ const SignUp = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                 />
-                {passwordError && <p className="text-red-500 text-sm">{passwordError}</p>}
-              </div>
-              <div className="text-sm text-gray-500">
-                <p>Para teste, use qualquer email terminado em @test.com e senha com mais de 5 caracteres</p>
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">

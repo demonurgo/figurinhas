@@ -4,10 +4,16 @@ import { Profile, ProfileWithStats, UserConnection } from "@/models/StickerTypes
 
 export const searchUsers = async (searchTerm: string): Promise<Profile[]> => {
   try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUserId = sessionData.session?.user.id;
+    
+    if (!searchTerm || searchTerm.length < 2) return [];
+    
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .or(`username.ilike.%${searchTerm}%,full_name.ilike.%${searchTerm}%`)
+      .or(`username.ilike.%${searchTerm}%,full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
+      .neq('id', currentUserId) // Exclude current user
       .limit(10);
       
     if (error) {
@@ -155,5 +161,28 @@ export const getProfileWithStats = async (userId: string): Promise<ProfileWithSt
   } catch (error) {
     console.error('Error in getProfileWithStats:', error);
     return null;
+  }
+};
+
+export const getFriendRequests = async (userId: string): Promise<any[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('friend_requests')
+      .select(`
+        *,
+        sender:sender_id(id, username, full_name, avatar_url)
+      `)
+      .eq('recipient_id', userId)
+      .eq('status', 'pending');
+      
+    if (error) {
+      console.error('Error getting friend requests:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in getFriendRequests:', error);
+    return [];
   }
 };

@@ -12,6 +12,7 @@ import Profile from "./pages/Profile";
 import Connections from "./pages/Connections";
 import UserProfile from "./pages/UserProfile";
 import ConnectionStickerDetail from "./pages/ConnectionStickerDetail";
+import FriendRequests from "./pages/FriendRequests";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/sticker/:id" element={<ProtectedRoute><StickerDetail /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/connections" element={<ProtectedRoute><Connections /></ProtectedRoute>} />
+            <Route path="/friend-requests" element={<ProtectedRoute><FriendRequests /></ProtectedRoute>} />
             <Route path="/user/:id" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
             <Route path="/user/:userId/sticker/:stickerId" element={<ProtectedRoute><ConnectionStickerDetail /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

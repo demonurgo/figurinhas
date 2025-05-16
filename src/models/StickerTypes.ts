@@ -4,6 +4,7 @@ export interface Profile {
   username: string;
   full_name: string | null;
   avatar_url: string | null;
+  email?: string;
   created_at: string;
   updated_at: string;
 }
@@ -30,4 +31,13 @@ export interface SupabaseSticker {
 export interface ProfileWithStats extends Profile {
   totalStickers: number;
   missingStickers: number;
+}
+
+export interface FriendRequest {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+  sender?: Profile;
 }

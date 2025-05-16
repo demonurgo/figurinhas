@@ -6,22 +6,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError("");
     
+    if (!email || !password) {
+      setError("Por favor, preencha todos os campos.");
+      setIsSubmitting(false);
+      return;
+    }
+    
+    console.log("Tentando fazer login com:", email);
     const success = await login(email, password);
     
     if (success) {
       navigate('/');
+    } else {
+      setError("Email ou senha incorretos. Tente novamente.");
     }
     
     setIsSubmitting(false);
@@ -44,6 +57,13 @@ const Login = () => {
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -69,7 +89,7 @@ const Login = () => {
               </div>
 
               <div className="text-sm text-gray-500">
-                <p>Para teste, use qualquer email terminado em @test.com e senha com mais de 5 caracteres</p>
+                <p>Para teste, use admin@test.com e senha admin123</p>
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
