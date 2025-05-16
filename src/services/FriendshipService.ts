@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Profile } from "@/models/StickerTypes";
 import { toast } from "@/components/ui/use-toast";
@@ -12,6 +11,29 @@ export interface FriendRequest {
   sender?: Profile;
   recipient?: Profile;
 }
+
+export const getPendingFriendRequestCount = async (): Promise<number> => {
+  try {
+    const user = await supabase.auth.getUser();
+    if (!user.data.user) return 0;
+    
+    const { data, error } = await supabase
+      .from('friend_requests')
+      .select('id')
+      .eq('recipient_id', user.data.user.id)
+      .eq('status', 'pending');
+      
+    if (error) {
+      console.error('Error getting friend request count:', error);
+      return 0;
+    }
+    
+    return data?.length || 0;
+  } catch (error) {
+    console.error('Error in getPendingFriendRequestCount:', error);
+    return 0;
+  }
+};
 
 export const searchUsers = async (searchTerm: string): Promise<Profile[]> => {
   if (!searchTerm || searchTerm.length < 2) return [];
@@ -37,16 +59,34 @@ export const searchUsers = async (searchTerm: string): Promise<Profile[]> => {
 
 export const sendFriendRequest = async (recipientId: string): Promise<boolean> => {
   try {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !userData || !userData.user) {
+      console.error('Error getting current user:', userError);
+      toast({
+        title: "Erro",
+        description: "Não foi possível identificar o usuário atual.",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    const senderId = userData.user.id;
+    
     // Check if request already exists
-    const { data: existingRequest } = await supabase
+    const { data: existingRequests, error: checkError } = await supabase
       .from('friend_requests')
       .select('*')
-      .or(`and(sender_id.eq.${supabase.auth.getUser()}.id,recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${supabase.auth.getUser()}.id)`)
-      .single();
+      .or(`and(sender_id.eq.${senderId},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${senderId})`);
     
-    if (existingRequest) {
+    if (checkError) {
+      console.error('Error checking existing requests:', checkError);
+      return false;
+    }
+    
+    if (existingRequests && existingRequests.length > 0) {
       toast({
-        title: "Pedido já existe",
+        title: "Solicitação já existe",
         description: "Já existe uma solicitação de amizade entre vocês.",
         variant: "destructive"
       });
@@ -58,7 +98,7 @@ export const sendFriendRequest = async (recipientId: string): Promise<boolean> =
       .from('friend_requests')
       .insert([
         { 
-          sender_id: (await supabase.auth.getUser()).data.user?.id,
+          sender_id: senderId,
           recipient_id: recipientId,
           status: 'pending'
         }

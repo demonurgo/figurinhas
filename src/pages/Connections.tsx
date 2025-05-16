@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Search, UserPlus, UserMinus, User } from "lucide-react";
+import { ArrowLeft, Search, UserPlus, UserMinus, User, Bell } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "@/components/ui/use-toast";
-import { getUserConnections, searchUsers, addConnection, removeConnection } from "@/services/ProfileService";
+import { getUserConnections, searchUsers, removeConnection } from "@/services/ProfileService";
+import { sendFriendRequest } from "@/services/FriendshipService";
 import { Profile } from "@/models/StickerTypes";
 
 const Connections = () => {
@@ -46,27 +47,18 @@ const Connections = () => {
     setIsSearching(false);
   };
 
-  const handleAddConnection = async (userId: string) => {
+  const handleSendFriendRequest = async (userId: string) => {
     if (!currentUser) return;
     
-    const success = await addConnection(currentUser.id, userId);
+    const success = await sendFriendRequest(userId);
     if (success) {
       toast({
-        title: "Conexão adicionada",
-        description: "Usuário adicionado às suas conexões.",
+        title: "Solicitação enviada",
+        description: "Solicitação de amizade enviada com sucesso!",
       });
       
       // Remove from search results
       setSearchResults(prev => prev.filter(user => user.id !== userId));
-      
-      // Reload connections
-      loadConnections();
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível adicionar a conexão.",
-      });
     }
   };
 
@@ -111,6 +103,14 @@ const Connections = () => {
             </Button>
             <h1 className="text-xl font-bold">Suas Conexões</h1>
           </div>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/friend-requests')}
+            className="flex items-center"
+          >
+            <Bell size={16} className="mr-2" />
+            Solicitações
+          </Button>
         </div>
       </header>
 
@@ -154,10 +154,10 @@ const Connections = () => {
                     </div>
                     <Button 
                       size="sm" 
-                      onClick={() => handleAddConnection(user.id)}
+                      onClick={() => handleSendFriendRequest(user.id)}
                       className="bg-sticker-purple hover:bg-sticker-purple-dark"
                     >
-                      <UserPlus size={16} className="mr-1" /> Adicionar
+                      <UserPlus size={16} className="mr-1" /> Solicitar amizade
                     </Button>
                   </div>
                 ))}

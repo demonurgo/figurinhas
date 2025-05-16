@@ -1,12 +1,12 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 import { getStickersByUserId, Sticker } from "@/models/StickerModel";
-import { LogOut, Image, Search, User, Users } from "lucide-react";
+import { LogOut, Image, Search, User, Users, Bell } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { getPendingFriendRequestCount } from "@/services/FriendshipService";
 
 const Dashboard = () => {
   const { currentUser, logout, profile } = useAuth();
@@ -19,13 +19,20 @@ const Dashboard = () => {
     withPhotos: 0 
   });
   const [loading, setLoading] = useState(true);
+  const [pendingRequests, setPendingRequests] = useState(0);
 
   useEffect(() => {
     async function loadStickers() {
       if (currentUser) {
         setLoading(true);
+        
+        // Carregar figurinhas
         const userStickers = await getStickersByUserId(currentUser.id);
         setStickers(userStickers);
+        
+        // Carregar contagem de solicitações pendentes
+        const requestCount = await getPendingFriendRequestCount();
+        setPendingRequests(requestCount);
         
         // Calculate statistics
         const collected = userStickers.filter(s => s.collected).length;
@@ -76,6 +83,20 @@ const Dashboard = () => {
             <p className="text-sm text-gray-600">Fernanda Pessoa</p>
           </div>
           <div className="flex gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate('/friend-requests')}
+              title="Solicitações de Amizade"
+              className="relative"
+            >
+              <Bell size={20} />
+              {pendingRequests > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {pendingRequests}
+                </span>
+              )}
+            </Button>
             <Button 
               variant="ghost" 
               size="icon" 
