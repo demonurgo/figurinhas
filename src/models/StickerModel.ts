@@ -25,25 +25,30 @@ export const getStickersByUserId = async (userId: string): Promise<Sticker[]> =>
       return [];
     }
     
-    // If user has stickers in Supabase
-    if (supabaseStickers && supabaseStickers.length > 0) {
-      // Convert to our frontend Sticker format
-      return supabaseStickers.map((sticker: SupabaseSticker) => ({
-        id: sticker.sticker_number,
-        collected: sticker.collected,
-        photoUrl: sticker.photo_url || undefined,
-        dateCollected: sticker.date_collected,
-        notes: sticker.notes || undefined
-      }));
-    }
-    
-    // If no stickers in Supabase, initialize 200 stickers
-    const initialStickers: Sticker[] = Array.from({ length: 200 }, (_, index) => ({
+    // Initialize all 200 stickers
+    const allStickers: Sticker[] = Array.from({ length: 200 }, (_, index) => ({
       id: index + 1,
       collected: false
     }));
     
-    return initialStickers;
+    // If user has stickers in Supabase
+    if (supabaseStickers && supabaseStickers.length > 0) {
+      // Update the stickers that exist in the database
+      supabaseStickers.forEach((dbSticker: SupabaseSticker) => {
+        const index = dbSticker.sticker_number - 1;
+        if (index >= 0 && index < 200) {
+          allStickers[index] = {
+            id: dbSticker.sticker_number,
+            collected: dbSticker.collected,
+            photoUrl: dbSticker.photo_url || undefined,
+            dateCollected: dbSticker.date_collected,
+            notes: dbSticker.notes || undefined
+          };
+        }
+      });
+    }
+    
+    return allStickers;
   } catch (error) {
     console.error('Error in getStickersByUserId:', error);
     return [];
@@ -53,6 +58,9 @@ export const getStickersByUserId = async (userId: string): Promise<Sticker[]> =>
 // Helper function to update a sticker in Supabase
 export const updateSticker = async (userId: string, sticker: Sticker): Promise<boolean> => {
   try {
+    // Para depuração
+    console.log("Atualizando figurinha:", sticker);
+    
     // Check if sticker already exists for this user
     const { data: existingSticker, error: checkError } = await supabase
       .from('stickers')
@@ -76,6 +84,8 @@ export const updateSticker = async (userId: string, sticker: Sticker): Promise<b
       updated_at: new Date().toISOString()
     };
     
+    console.log("Dados para atualizar:", stickerData);
+    
     let result;
     
     if (existingSticker) {
@@ -85,16 +95,27 @@ export const updateSticker = async (userId: string, sticker: Sticker): Promise<b
         .update(stickerData)
         .eq('id', existingSticker.id);
         
-      result = !error;
+      if (error) {
+        console.error('Error updating sticker:', error);
+        return false;
+      }
+      
+      result = true;
     } else {
       // Insert new sticker
       const { error } = await supabase
         .from('stickers')
         .insert([stickerData]);
         
-      result = !error;
+      if (error) {
+        console.error('Error inserting sticker:', error);
+        return false;
+      }
+      
+      result = true;
     }
     
+    console.log("Atualização concluída com sucesso:", result);
     return result;
   } catch (error) {
     console.error('Error updating sticker:', error);

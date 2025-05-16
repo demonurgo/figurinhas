@@ -112,44 +112,67 @@ const StickerDetail = () => {
     try {
       setIsUploading(true);
       
-      // Upload to Supabase Storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${currentUser.id}/${fileName}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('sticker_photos')
-        .upload(filePath, file);
+      // Convert image to base64 data URL usando FileReader
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        if (!event.target || !event.target.result) {
+          toast({
+            variant: "destructive",
+            title: "Erro ao processar imagem",
+            description: "Não foi possível processar a imagem selecionada."
+          });
+          setIsUploading(false);
+          return;
+        }
         
-      if (uploadError) {
-        toast({
-          variant: "destructive",
-          title: "Erro no upload",
-          description: "Não foi possível fazer o upload da imagem."
-        });
-        return;
-      }
-      
-      // Get public URL
-      const { data } = supabase.storage
-        .from('sticker_photos')
-        .getPublicUrl(filePath);
+        const imageDataUrl = event.target.result.toString();
         
-      // Update sticker with photo URL
-      const updatedSticker: Sticker = {
-        ...sticker,
-        photoUrl: data.publicUrl
+        // Validar se é uma imagem válida
+        if (!imageDataUrl.startsWith('data:image/')) {
+          toast({
+            variant: "destructive",
+            title: "Formato inválido",
+            description: "Por favor, selecione uma imagem válida."
+          });
+          setIsUploading(false);
+          return;
+        }
+        
+        // Update sticker with base64 image data
+        const updatedSticker: Sticker = {
+          ...sticker,
+          photoUrl: imageDataUrl
+        };
+        
+        const success = await updateSticker(currentUser.id, updatedSticker);
+        if (success) {
+          setSticker(updatedSticker);
+          
+          toast({
+            title: "Foto adicionada",
+            description: "A foto da figurinha foi salva com sucesso!"
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Erro",
+            description: "Não foi possível salvar a foto da figurinha."
+          });
+        }
+        setIsUploading(false);
       };
       
-      const success = await updateSticker(currentUser.id, updatedSticker);
-      if (success) {
-        setSticker(updatedSticker);
-        
+      reader.onerror = () => {
         toast({
-          title: "Foto adicionada",
-          description: "A foto da figurinha foi salva com sucesso!"
+          variant: "destructive",
+          title: "Erro ao ler arquivo",
+          description: "Ocorreu um erro ao ler o arquivo de imagem."
         });
-      }
+        setIsUploading(false);
+      };
+      
+      // Iniciar a leitura do arquivo como Data URL (base64)
+      reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error uploading photo:', error);
       toast({
@@ -157,30 +180,15 @@ const StickerDetail = () => {
         title: "Erro",
         description: "Ocorreu um erro ao fazer o upload da foto."
       });
-    } finally {
       setIsUploading(false);
     }
   };
 
   const handleDeletePhoto = async () => {
-    if (!sticker || !currentUser || !sticker.photoUrl) return;
+    if (!sticker || !currentUser) return;
     
     try {
-      // Extract file path from URL
-      const urlParts = sticker.photoUrl.split('/');
-      const fileName = urlParts[urlParts.length - 1];
-      const filePath = `${currentUser.id}/${fileName}`;
-      
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from('sticker_photos')
-        .remove([filePath]);
-        
-      if (storageError) {
-        console.error('Storage delete error:', storageError);
-      }
-      
-      // Update sticker
+      // Update sticker without photo URL
       const updatedSticker: Sticker = {
         ...sticker,
         photoUrl: undefined
@@ -217,17 +225,6 @@ const StickerDetail = () => {
     if (!sticker || !currentUser) return;
     
     try {
-      // If there's a photo, delete it first
-      if (sticker.photoUrl) {
-        const urlParts = sticker.photoUrl.split('/');
-        const fileName = urlParts[urlParts.length - 1];
-        const filePath = `${currentUser.id}/${fileName}`;
-        
-        await supabase.storage
-          .from('sticker_photos')
-          .remove([filePath]);
-      }
-      
       const success = await deleteSticker(currentUser.id, sticker.id);
       if (success) {
         toast({

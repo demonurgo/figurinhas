@@ -44,6 +44,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error('Error fetching profile:', error);
+        
+        // Verificar se o erro é que o perfil não existe
+        if (error.code === 'PGRST116') {
+          console.log('Profile not found, attempting to create one for user:', userId);
+          
+          // Buscar dados do usuário autenticado
+          const { data: userData } = await supabase.auth.getUser();
+          
+          if (userData && userData.user) {
+            // Criar um perfil para o usuário
+            const email = userData.user.email || '';
+            const { error: createError } = await supabase
+              .from('profiles')
+              .insert([
+                { 
+                  id: userId,
+                  username: email.split('@')[0],
+                  full_name: userData.user.user_metadata?.name || email.split('@')[0],
+                  email: email,
+                  avatar_url: null
+                }
+              ]);
+              
+            if (createError) {
+              console.error('Error creating profile in fetchProfile:', createError);
+            } else {
+              console.log('Profile created successfully in fetchProfile');
+              // Buscar o perfil recém-criado
+              const { data: newProfile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+                
+              if (newProfile) {
+                setProfile(newProfile);
+              }
+            }
+          }
+        }
         return;
       }
       
@@ -153,7 +193,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       if (data.user) {
-        console.log('Login successful for:', data.user.email);
+        console.log('Login successful for:', data.user.email, 'User ID:', data.user.id);
+        
+        // Verificar se o perfil existe
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+          
+        if (profileError || !profileData) {
+          console.error('Profile not found for user:', data.user.id, profileError);
+          
+          // Tentar criar o perfil se não existir
+          const { error: createProfileError } = await supabase
+            .from('profiles')
+            .insert([
+              { 
+                id: data.user.id,
+                username: email.split('@')[0],
+                full_name: data.user.user_metadata?.name || email.split('@')[0],
+                email: email,
+                avatar_url: null
+              }
+            ]);
+            
+          if (createProfileError) {
+            console.error('Error creating missing profile:', createProfileError);
+            toast({
+              variant: "destructive",
+              title: "Erro no perfil",
+              description: "Autenticação bem-sucedida, mas houve um problema com seu perfil.",
+            });
+          } else {
+            console.log('Created missing profile for user:', data.user.id);
+          }
+        } else {
+          console.log('Profile found for user:', data.user.id);
+        }
+        
         toast({
           title: "Login bem-sucedido!",
           description: `Bem-vindo de volta!`,
@@ -242,6 +320,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (data.user) {
         console.log('Signup successful for:', data.user.email);
+        
+        // Criar um registro na tabela profiles
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            { 
+              id: data.user.id,
+              username: email.split('@')[0], // Username básico usando a parte antes do @
+              full_name: name,
+              email: email,
+              avatar_url: null
+            }
+          ]);
+          
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          toast({
+            variant: "destructive",
+            title: "Erro ao criar perfil",
+            description: "Sua conta foi criada, mas houve um erro ao configurar seu perfil.",
+          });
+        } else {
+          console.log('Profile created successfully for user:', data.user.id);
+        }
         
         toast({
           title: "Conta criada com sucesso!",

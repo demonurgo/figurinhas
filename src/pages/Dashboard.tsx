@@ -163,15 +163,24 @@ const Dashboard = () => {
           {filteredStickers.map((sticker) => (
             <button
               key={sticker.id}
-              className={`aspect-square rounded-md flex flex-col items-center justify-center border text-sm font-medium transition-colors ${
+              className={`aspect-square rounded-md flex flex-col items-center justify-center border text-sm font-medium transition-colors relative overflow-hidden ${
                 sticker.collected
                   ? "bg-sticker-purple text-white border-sticker-purple-dark"
                   : "bg-white text-gray-700 border-gray-200"
               }`}
               onClick={() => handleStickerClick(sticker.id)}
             >
-              <span>{sticker.id}</span>
-              {sticker.photoUrl && <Image size={12} className="mt-1" />}
+              {sticker.photoUrl ? (
+                <>
+                  <div 
+                    className="absolute inset-0 w-full h-full bg-cover bg-center z-0 opacity-90" 
+                    style={{ backgroundImage: `url(${sticker.photoUrl})` }}
+                  />
+                  <span className="z-10 text-white font-bold drop-shadow-md">{sticker.id}</span>
+                </>
+              ) : (
+                <span>{sticker.id}</span>
+              )}
             </button>
           ))}
         </div>

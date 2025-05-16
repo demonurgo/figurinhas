@@ -47,30 +47,69 @@ const Profile = () => {
       }
       
       const file = e.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${currentUser.id}/${fileName}`;
-      
       setUploading(true);
       
-      const { error: uploadError } = await supabase.storage
-        .from('sticker_photos')
-        .upload(filePath, file);
+      // Converter imagem para base64 usando FileReader
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        if (!event.target || !event.target.result) {
+          toast({
+            variant: "destructive",
+            title: "Erro ao processar imagem",
+            description: "Não foi possível processar a imagem selecionada.",
+          });
+          setUploading(false);
+          return;
+        }
         
-      if (uploadError) {
+        const imageDataUrl = event.target.result.toString();
+        
+        // Validar se é uma imagem válida
+        if (!imageDataUrl.startsWith('data:image/')) {
+          toast({
+            variant: "destructive",
+            title: "Formato inválido",
+            description: "Por favor, selecione uma imagem válida.",
+          });
+          setUploading(false);
+          return;
+        }
+        
+        setAvatarUrl(imageDataUrl);
+        
+        // Atualizar o perfil automaticamente com a nova URL da foto
+        const success = await updateProfile({
+          username,
+          full_name: fullName,
+          avatar_url: imageDataUrl
+        });
+        
+        if (success) {
+          toast({
+            title: "Foto atualizada",
+            description: "Sua foto de perfil foi atualizada com sucesso!",
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Erro ao salvar",
+            description: "A foto foi carregada, mas não foi possível salvá-la no seu perfil.",
+          });
+        }
+        setUploading(false);
+      };
+      
+      reader.onerror = () => {
         toast({
           variant: "destructive",
-          title: "Erro no upload",
-          description: "Não foi possível fazer o upload da imagem.",
+          title: "Erro ao ler arquivo",
+          description: "Ocorreu um erro ao ler o arquivo de imagem.",
         });
-        return;
-      }
+        setUploading(false);
+      };
       
-      const { data } = supabase.storage
-        .from('sticker_photos')
-        .getPublicUrl(filePath);
-        
-      setAvatarUrl(data.publicUrl);
+      // Iniciar a leitura do arquivo como Data URL (base64)
+      reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error uploading avatar:', error);
       toast({
@@ -78,7 +117,6 @@ const Profile = () => {
         title: "Erro no upload",
         description: "Ocorreu um erro ao tentar fazer o upload do avatar.",
       });
-    } finally {
       setUploading(false);
     }
   };
