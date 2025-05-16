@@ -1,4 +1,4 @@
-const CACHE_NAME = 'figurinhas-da-fer-v1';
+const CACHE_NAME = 'figurinhas-v1';
 
 // Liste os recursos que você deseja cachear
 const urlsToCache = [
