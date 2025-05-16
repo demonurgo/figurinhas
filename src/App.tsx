@@ -8,6 +8,10 @@ import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import Dashboard from "./pages/Dashboard";
 import StickerDetail from "./pages/StickerDetail";
+import Profile from "./pages/Profile";
+import Connections from "./pages/Connections";
+import UserProfile from "./pages/UserProfile";
+import ConnectionStickerDetail from "./pages/ConnectionStickerDetail";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
@@ -26,6 +30,10 @@ const App = () => (
             <Route path="/signup" element={<SignUp />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/sticker/:id" element={<ProtectedRoute><StickerDetail /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/connections" element={<ProtectedRoute><Connections /></ProtectedRoute>} />
+            <Route path="/user/:id" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+            <Route path="/user/:userId/sticker/:stickerId" element={<ProtectedRoute><ConnectionStickerDetail /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

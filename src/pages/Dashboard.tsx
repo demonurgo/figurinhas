@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 import { getStickersByUserId, Sticker } from "@/models/StickerModel";
-import { LogOut, Image, Search } from "lucide-react";
+import { LogOut, Image, Search, User, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 const Dashboard = () => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, profile } = useAuth();
   const [stickers, setStickers] = useState<Sticker[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
@@ -18,22 +18,29 @@ const Dashboard = () => {
     remaining: 0, 
     withPhotos: 0 
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (currentUser) {
-      const userStickers = getStickersByUserId(currentUser.id);
-      setStickers(userStickers);
-      
-      // Calculate statistics
-      const collected = userStickers.filter(s => s.collected).length;
-      const withPhotos = userStickers.filter(s => s.photoUrl).length;
-      
-      setStats({
-        collected,
-        remaining: 200 - collected,
-        withPhotos
-      });
+    async function loadStickers() {
+      if (currentUser) {
+        setLoading(true);
+        const userStickers = await getStickersByUserId(currentUser.id);
+        setStickers(userStickers);
+        
+        // Calculate statistics
+        const collected = userStickers.filter(s => s.collected).length;
+        const withPhotos = userStickers.filter(s => s.photoUrl).length;
+        
+        setStats({
+          collected,
+          remaining: 200 - collected,
+          withPhotos
+        });
+        setLoading(false);
+      }
     }
+    
+    loadStickers();
   }, [currentUser]);
 
   const handleStickerClick = (id: number) => {
@@ -51,6 +58,14 @@ const Dashboard = () => {
            sticker.photoUrl && searchTerm.toLowerCase() === "com foto";
   });
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse-soft text-sticker-purple-dark">Carregando...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -60,16 +75,54 @@ const Dashboard = () => {
             <h1 className="text-xl font-bold text-sticker-purple-dark">Álbum de Figurinhas</h1>
             <p className="text-sm text-gray-600">Fernanda Pessoa</p>
           </div>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={logout}
-            title="Sair"
-          >
-            <LogOut size={20} />
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate('/connections')}
+              title="Conexões"
+            >
+              <Users size={20} />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate('/profile')}
+              title="Perfil"
+            >
+              <User size={20} />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={logout}
+              title="Sair"
+            >
+              <LogOut size={20} />
+            </Button>
+          </div>
         </div>
       </header>
+
+      {/* Profile Summary */}
+      {profile && (
+        <div className="bg-sticker-purple text-white py-3">
+          <div className="max-w-4xl mx-auto px-4 flex justify-between items-center">
+            <div>
+              <p className="font-medium">{profile.full_name || profile.username}</p>
+              <p className="text-xs opacity-80">@{profile.username}</p>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="bg-white text-sticker-purple"
+              onClick={() => navigate('/profile')}
+            >
+              <User size={14} className="mr-1" /> Editar Perfil
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="max-w-4xl mx-auto px-4 py-4">

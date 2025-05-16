@@ -9,7 +9,90 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      stickers: {
+        Row: {
+          collected: boolean
+          created_at: string
+          date_collected: string
+          id: string
+          notes: string | null
+          photo_url: string | null
+          sticker_number: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          collected?: boolean
+          created_at?: string
+          date_collected?: string
+          id?: string
+          notes?: string | null
+          photo_url?: string | null
+          sticker_number: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          collected?: boolean
+          created_at?: string
+          date_collected?: string
+          id?: string
+          notes?: string | null
+          photo_url?: string | null
+          sticker_number?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_connections: {
+        Row: {
+          connected_user_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          connected_user_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          connected_user_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

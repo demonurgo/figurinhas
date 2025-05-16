@@ -1,0 +1,202 @@
+
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { ArrowLeft, Check, Image as ImageIcon } from "lucide-react";
+import { SupabaseSticker } from "@/models/StickerTypes";
+
+const ConnectionStickerDetail = () => {
+  const { userId, stickerId } = useParams<{ userId: string; stickerId: string }>();
+  const { currentUser } = useAuth();
+  const [sticker, setSticker] = useState<SupabaseSticker | null>(null);
+  const [username, setUsername] = useState("");
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const stickerNumber = parseInt(stickerId || "0");
+
+  useEffect(() => {
+    if (userId && stickerNumber && currentUser) {
+      fetchSticker();
+      fetchUsername();
+    }
+  }, [userId, stickerNumber, currentUser]);
+
+  const fetchSticker = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('stickers')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('sticker_number', stickerNumber)
+        .maybeSingle();
+        
+      if (error) {
+        console.error('Error fetching sticker:', error);
+        return;
+      }
+      
+      if (data) {
+        setSticker(data);
+      }
+    } catch (error) {
+      console.error('Error in fetchSticker:', error);
+    }
+  };
+
+  const fetchUsername = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username, full_name')
+        .eq('id', userId)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching username:', error);
+        return;
+      }
+      
+      if (data) {
+        setUsername(data.full_name || data.username);
+      }
+    } catch (error) {
+      console.error('Error in fetchUsername:', error);
+    }
+  };
+
+  const handleViewPhoto = () => {
+    if (sticker?.photo_url) {
+      setPhotoPreview(sticker.photo_url);
+    }
+  };
+
+  if (!sticker) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse-soft text-sticker-purple-dark">Carregando...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate(-1)}
+              className="mr-2"
+            >
+              <ArrowLeft size={20} />
+            </Button>
+            <h1 className="text-xl font-bold">Figurinha #{stickerNumber}</h1>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        {/* Ownership Info */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg">Coleção de {username}</CardTitle>
+          </CardHeader>
+        </Card>
+
+        {/* Sticker Status Card */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg flex justify-between items-center">
+              Status
+              <span className={sticker.collected ? "text-green-500" : "text-gray-400"}>
+                {sticker.collected ? <Check size={20} /> : null}
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="font-medium">
+              {sticker.collected ? "Coletada" : "Não coletada"}
+            </p>
+            
+            {sticker.date_collected && (
+              <p className="text-sm text-gray-500 mt-2">
+                Coletada em: {new Date(sticker.date_collected).toLocaleDateString('pt-BR')}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Photo Card */}
+        {sticker.collected && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Foto</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {sticker.photo_url ? (
+                <div className="text-center">
+                  <div 
+                    className="aspect-square max-w-48 mx-auto mb-4 rounded-md bg-cover bg-center cursor-pointer border"
+                    style={{ backgroundImage: `url(${sticker.photo_url})` }}
+                    onClick={handleViewPhoto}
+                  ></div>
+                  
+                  <Button variant="outline" className="flex items-center" onClick={handleViewPhoto}>
+                    <ImageIcon size={16} className="mr-2" /> Visualizar
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-gray-500">Esta figurinha não tem foto</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Notes Card */}
+        {sticker.notes && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Anotações</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-700">{sticker.notes}</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Full screen photo preview */}
+      {photoPreview && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+          onClick={() => setPhotoPreview(null)}
+        >
+          <div className="relative max-w-full max-h-full">
+            <img 
+              src={photoPreview} 
+              alt="Foto da figurinha" 
+              className="max-w-full max-h-[80vh] object-contain rounded-md"
+            />
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="absolute top-3 right-3 rounded-full bg-black bg-opacity-50 text-white"
+              onClick={() => setPhotoPreview(null)}
+            >
+              <ArrowLeft size={20} />
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ConnectionStickerDetail;
