@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -97,10 +96,11 @@ const Connections = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header - Reorganizado para melhor visualização em celulares */}
       <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center">
+        <div className="max-w-4xl mx-auto px-4 py-3">
+          {/* Primeira linha: Botão de voltar e título */}
+          <div className="flex items-center mb-2">
             <Button 
               variant="ghost" 
               size="icon" 
@@ -111,6 +111,8 @@ const Connections = () => {
             </Button>
             <h1 className="text-xl font-bold">Suas Conexões</h1>
           </div>
+          
+          {/* Segunda linha: Botões de ação */}
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -124,6 +126,7 @@ const Connections = () => {
             </Button>
             <Button
               variant="outline"
+              size="sm"
               onClick={() => navigate('/friend-requests')}
               className="flex items-center"
             >
@@ -200,33 +203,44 @@ const Connections = () => {
           <div className="space-y-3">
             {connections.map((connection) => (
               <Card key={connection.id}>
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center" onClick={() => viewProfile(connection.id)} style={{ cursor: 'pointer' }}>
-                    <Avatar className="h-12 w-12 mr-3">
-                      <AvatarImage src={connection.avatar_url || undefined} />
-                      <AvatarFallback>{connection.full_name?.charAt(0) || connection.username.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{connection.full_name || connection.username}</p>
-                      <p className="text-xs text-gray-500">@{connection.username}</p>
+                <CardContent className="p-4">
+                  {/* Layout reorganizado para celulares: info e botões em colunas */}
+                  <div className="flex flex-col">
+                    {/* Informações do usuário */}
+                    <div 
+                      className="flex items-center mb-3" 
+                      onClick={() => viewProfile(connection.id)} 
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <Avatar className="h-12 w-12 mr-3">
+                        <AvatarImage src={connection.avatar_url || undefined} />
+                        <AvatarFallback>{connection.full_name?.charAt(0) || connection.username.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{connection.full_name || connection.username}</p>
+                        <p className="text-xs text-gray-500">@{connection.username}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline"
-                      size="sm" 
-                      onClick={() => viewProfile(connection.id)}
-                    >
-                      <User size={16} className="mr-1" /> Perfil
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      size="sm" 
-                      onClick={() => handleRemoveConnection(connection.id)}
-                      className="text-red-500 border-red-200 hover:bg-red-50"
-                    >
-                      <UserMinus size={16} className="mr-1" /> Remover
-                    </Button>
+                    
+                    {/* Botões abaixo das informações */}
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline"
+                        size="sm" 
+                        onClick={() => viewProfile(connection.id)}
+                        className="flex-1"
+                      >
+                        <User size={16} className="mr-1" /> Perfil
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        size="sm" 
+                        onClick={() => handleRemoveConnection(connection.id)}
+                        className="flex-1 text-red-500 border-red-200 hover:bg-red-50"
+                      >
+                        <UserMinus size={16} className="mr-1" /> Remover
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

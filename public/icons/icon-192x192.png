@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="192px" height="192px" viewBox="0 0 192 192" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <title>App Icon</title>
+    <g id="Icon" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <rect fill="#8a63d2" x="0" y="0" width="192" height="192" rx="48"></rect>
+        <g id="Album" transform="translate(48.000000, 48.000000)" fill="#FFFFFF">
+            <rect id="Cover" x="0" y="0" width="96" height="96" rx="8"></rect>
+            <rect id="Page1" x="9" y="9" width="39" height="39" rx="4"></rect>
+            <rect id="Page2" x="54" y="9" width="30" height="30" rx="4"></rect>
+            <rect id="Page3" x="9" y="54" width="30" height="30" rx="4"></rect>
+            <rect id="Page4" x="54" y="54" width="39" height="39" rx="4"></rect>
+        </g>
+    </g>
+</svg>
