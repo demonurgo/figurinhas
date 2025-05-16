@@ -14,6 +14,22 @@ import { Sticker } from "@/models/StickerModel";
 import { toast } from "@/components/ui/use-toast";
 import { sendFriendRequest } from "@/services/FriendshipService";
 
+// Definindo constantes
+const TOTAL_STICKERS = 184;
+
+// Definindo as figurinhas especiais
+const BRONZE_STICKERS = [10, 22, 34, 46, 58, 70, 82, 94, 102, 114, 126, 138, 150, 162];
+const SILVER_STICKERS = [11, 23, 35, 47, 59, 71, 83, 95, 103, 115, 127, 139, 151, 163];
+const GOLD_STICKERS = [12, 24, 36, 48, 60, 72, 84, 96, 104, 116, 128, 140, 152, 164];
+
+// Função para verificar se uma figurinha é especial e retornar seu tipo
+const getStickerType = (id: number) => {
+  if (BRONZE_STICKERS.includes(id)) return 'bronze';
+  if (SILVER_STICKERS.includes(id)) return 'silver';
+  if (GOLD_STICKERS.includes(id)) return 'gold';
+  return 'regular';
+};
+
 const UserProfile = () => {
   const { id } = useParams<{ id: string }>();
   const [userProfile, setUserProfile] = useState<ProfileWithStats | null>(null);
@@ -178,14 +194,14 @@ const UserProfile = () => {
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-xs text-gray-500">Figurinhas coletadas</p>
-              <p className="text-lg font-bold text-sticker-purple">{isConnection ? collectedStickers : "?"} / 200</p>
+              <p className="text-lg font-bold text-sticker-purple">{isConnection ? collectedStickers : "?"} / {TOTAL_STICKERS}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-xs text-gray-500">Progresso</p>
               <p className="text-lg font-bold text-gray-500">
-                {isConnection ? `${Math.round((collectedStickers / 200) * 100)}%` : "?"}
+                {isConnection ? `${Math.round((collectedStickers / TOTAL_STICKERS) * 100)}%` : "?"}
               </p>
             </CardContent>
           </Card>
@@ -196,32 +212,67 @@ const UserProfile = () => {
           <>
             <h3 className="text-md font-medium mb-2">Figurinhas</h3>
             <div className="grid grid-cols-5 sm:grid-cols-8 gap-2 mb-20">
-              {stickers.map((sticker) => (
-                <button
-                  key={sticker.id}
-                  className={`aspect-square rounded-md flex flex-col items-center justify-center border text-sm font-medium transition-colors relative overflow-hidden ${
-                    sticker.collected
-                      ? "bg-sticker-purple text-white border-sticker-purple-dark"
-                      : "bg-white text-gray-700 border-gray-200"
-                  }`}
-                  onClick={() => handleStickerClick(sticker.id)}
-                >
-                  {sticker.photoUrl ? (
-                    <>
-                      <div 
-                        className="absolute inset-0 w-full h-full bg-cover bg-center z-0 opacity-90" 
-                        style={{ backgroundImage: `url(${sticker.photoUrl})` }}
-                      />
-                      <span className="z-10 text-white font-bold drop-shadow-md">{sticker.id}</span>
-                    </>
-                  ) : (
-                    <span>{sticker.id}</span>
-                  )}
-                </button>
-              ))}
+              {stickers.map((sticker) => {
+                const stickerType = getStickerType(sticker.id);
+                
+                // Determinar as classes de estilo baseadas no tipo da figurinha
+                let specialStyles = '';
+                let specialBorder = '';
+                
+                if (stickerType === 'bronze') {
+                  specialStyles = sticker.collected ? 'bg-amber-700 text-white' : 'bg-white';
+                  specialBorder = 'border-amber-800';
+                } else if (stickerType === 'silver') {
+                  specialStyles = sticker.collected ? 'bg-gray-300 text-gray-800' : 'bg-white';
+                  specialBorder = 'border-gray-400';
+                } else if (stickerType === 'gold') {
+                  specialStyles = sticker.collected ? 'bg-yellow-500 text-white' : 'bg-white';
+                  specialBorder = 'border-yellow-600';
+                } else {
+                  specialStyles = sticker.collected 
+                    ? 'bg-sticker-purple text-white' 
+                    : 'bg-white text-gray-700';
+                  specialBorder = sticker.collected 
+                    ? 'border-sticker-purple-dark' 
+                    : 'border-gray-200';
+                }
+                
+                return (
+                  <button
+                    key={sticker.id}
+                    className={`aspect-square rounded-md flex flex-col items-center justify-center border text-sm font-medium transition-colors relative overflow-hidden ${specialStyles} ${specialBorder}`}
+                    onClick={() => handleStickerClick(sticker.id)}
+                  >
+                    {sticker.photoUrl ? (
+                      <>
+                        <div 
+                          className={`absolute inset-0 w-full h-full bg-cover bg-center z-0 opacity-90 ${
+                            stickerType === 'bronze' ? 'border-4 border-amber-800' : 
+                            stickerType === 'silver' ? 'border-4 border-gray-400' : 
+                            stickerType === 'gold' ? 'border-4 border-yellow-600' : ''
+                          }`} 
+                          style={{ backgroundImage: `url(${sticker.photoUrl})` }}
+                        />
+                        <span className="z-10 text-white font-bold drop-shadow-md">{sticker.id}</span>
+                      </>
+                    ) : (
+                      <span className="relative z-10">
+                        {sticker.id}
+                        {stickerType !== 'regular' && (
+                          <span className="block text-xs mt-1">
+                            {stickerType === 'bronze' && '🥉'}
+                            {stickerType === 'silver' && '🥈'}
+                            {stickerType === 'gold' && '🥇'}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
               
               {/* If there are no stickers yet, show placeholders */}
-              {stickers.length === 0 && Array.from({ length: 200 }).map((_, index) => (
+              {stickers.length === 0 && Array.from({ length: TOTAL_STICKERS }).map((_, index) => (
                 <div
                   key={index}
                   className="aspect-square rounded-md flex items-center justify-center border border-gray-200 bg-gray-50 text-gray-400 text-sm"

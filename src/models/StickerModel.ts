@@ -25,8 +25,8 @@ export const getStickersByUserId = async (userId: string): Promise<Sticker[]> =>
       return [];
     }
     
-    // Initialize all 200 stickers
-    const allStickers: Sticker[] = Array.from({ length: 200 }, (_, index) => ({
+    // Initialize all 184 stickers
+    const allStickers: Sticker[] = Array.from({ length: 184 }, (_, index) => ({
       id: index + 1,
       collected: false
     }));
@@ -36,7 +36,7 @@ export const getStickersByUserId = async (userId: string): Promise<Sticker[]> =>
       // Update the stickers that exist in the database
       supabaseStickers.forEach((dbSticker: SupabaseSticker) => {
         const index = dbSticker.sticker_number - 1;
-        if (index >= 0 && index < 200) {
+        if (index >= 0 && index < 184) {
           allStickers[index] = {
             id: dbSticker.sticker_number,
             collected: dbSticker.collected,

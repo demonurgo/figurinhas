@@ -254,7 +254,7 @@ export const getProfileWithStats = async (userId: string): Promise<ProfileWithSt
     }
     
     const totalStickers = stickers ? stickers.length : 0;
-    const missingStickers = 200 - totalStickers;
+    const missingStickers = 184 - totalStickers;
     
     return {
       ...profile,

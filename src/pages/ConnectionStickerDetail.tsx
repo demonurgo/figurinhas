@@ -8,6 +8,42 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Check, Image as ImageIcon } from "lucide-react";
 import { SupabaseSticker } from "@/models/StickerTypes";
 
+// Definindo as figurinhas especiais
+const BRONZE_STICKERS = [10, 22, 34, 46, 58, 70, 82, 94, 102, 114, 126, 138, 150, 162];
+const SILVER_STICKERS = [11, 23, 35, 47, 59, 71, 83, 95, 103, 115, 127, 139, 151, 163];
+const GOLD_STICKERS = [12, 24, 36, 48, 60, 72, 84, 96, 104, 116, 128, 140, 152, 164];
+
+// Definição das categorias das figurinhas
+const STICKER_CATEGORIES = {
+  "Fotografias": [1, 12],
+  "Pinturas": [13, 60],
+  "Esculturas e instalações": [61, 72],
+  "Obras literárias": [73, 96],
+  "Distopias": [97, 104],
+  "Poemas": [105, 116],
+  "Músicas": [117, 128],
+  "Filmes": [129, 140],
+  "Clássicos infantis": [141, 152],
+  "Teóricos": [153, 164],
+  "Slogans": [165, 184]
+};
+
+const getStickerType = (id: number) => {
+  if (BRONZE_STICKERS.includes(id)) return 'bronze';
+  if (SILVER_STICKERS.includes(id)) return 'silver';
+  if (GOLD_STICKERS.includes(id)) return 'gold';
+  return 'regular';
+};
+
+const getStickerCategory = (id: number) => {
+  for (const [category, range] of Object.entries(STICKER_CATEGORIES)) {
+    if (id >= range[0] && id <= range[1]) {
+      return category;
+    }
+  }
+  return "Sem categoria";
+};
+
 const ConnectionStickerDetail = () => {
   const { userId, stickerId } = useParams<{ userId: string; stickerId: string }>();
   const { currentUser } = useAuth();
@@ -81,10 +117,29 @@ const ConnectionStickerDetail = () => {
     );
   }
 
+  // Determinar o tipo e a categoria da figurinha atual
+  const stickerType = getStickerType(stickerNumber);
+  const stickerCategory = getStickerCategory(stickerNumber);
+  
+  // Definir estilos baseados no tipo da figurinha
+  let headerColor = "bg-white";
+  let medalIcon = null;
+  
+  if (stickerType === 'bronze') {
+    headerColor = sticker.collected ? "bg-amber-100" : "bg-white";
+    medalIcon = "🥉";
+  } else if (stickerType === 'silver') {
+    headerColor = sticker.collected ? "bg-gray-100" : "bg-white";
+    medalIcon = "🥈";
+  } else if (stickerType === 'gold') {
+    headerColor = sticker.collected ? "bg-yellow-100" : "bg-white";
+    medalIcon = "🥇";
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-10">
+      <header className={`${headerColor} shadow-sm sticky top-0 z-10`}>
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center">
             <Button 
@@ -95,7 +150,12 @@ const ConnectionStickerDetail = () => {
             >
               <ArrowLeft size={20} />
             </Button>
-            <h1 className="text-xl font-bold">Figurinha #{stickerNumber}</h1>
+            <div>
+              <h1 className="text-xl font-bold flex items-center">
+                Figurinha #{stickerNumber} {medalIcon && <span className="ml-2 text-lg">{medalIcon}</span>}
+              </h1>
+              <p className="text-xs text-gray-500">{stickerCategory}</p>
+            </div>
           </div>
         </div>
       </header>
@@ -109,7 +169,9 @@ const ConnectionStickerDetail = () => {
         </Card>
 
         {/* Sticker Status Card */}
-        <Card className="mb-6">
+        <Card className={`mb-6 ${stickerType === 'bronze' && sticker.collected ? 'border-amber-500' : 
+                           stickerType === 'silver' && sticker.collected ? 'border-gray-400' : 
+                           stickerType === 'gold' && sticker.collected ? 'border-yellow-500' : ''}`}>
           <CardHeader>
             <CardTitle className="text-lg flex justify-between items-center">
               Status
@@ -141,7 +203,11 @@ const ConnectionStickerDetail = () => {
               {sticker.photo_url ? (
                 <div className="text-center">
                   <div 
-                    className="aspect-square max-w-48 mx-auto mb-4 rounded-md bg-cover bg-center cursor-pointer border"
+                    className={`aspect-square max-w-48 mx-auto mb-4 rounded-md bg-cover bg-center cursor-pointer border ${stickerType === 'bronze' ? 'border-amber-800 shadow-amber-300/50' : 
+                                 stickerType === 'silver' ? 'border-gray-400 shadow-gray-300/50' : 
+                                 stickerType === 'gold' ? 'border-yellow-600 shadow-yellow-300/50' : ''} ${
+                                 stickerType === 'gold' ? 'shadow-md hover:shadow-lg transition-shadow' : ''
+                               }`}
                     style={{ backgroundImage: `url(${sticker.photo_url})` }}
                     onClick={handleViewPhoto}
                   ></div>
