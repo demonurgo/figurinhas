@@ -30,36 +30,74 @@ export const searchUsers = async (searchTerm: string): Promise<Profile[]> => {
 
 export const getUserConnections = async (userId: string): Promise<Profile[]> => {
   try {
-    // Get user connections
-    const { data: connections, error } = await supabase
+    console.log('Buscando conexões para o usuário:', userId);
+    
+    // Buscar conexões onde o usuário é o user_id
+    const { data: outgoingConnections, error: outgoingError } = await supabase
       .from('user_connections')
       .select('connected_user_id')
       .eq('user_id', userId);
       
-    if (error) {
-      console.error('Error getting connections:', error);
+    // Buscar conexões onde o usuário é o connected_user_id
+    const { data: incomingConnections, error: incomingError } = await supabase
+      .from('user_connections')
+      .select('user_id')
+      .eq('connected_user_id', userId);
+      
+    if (outgoingError) {
+      console.error('Erro ao buscar conexões de saída:', outgoingError);
+    }
+    
+    if (incomingError) {
+      console.error('Erro ao buscar conexões de entrada:', incomingError);
+    }
+    
+    console.log('Conexões de saída encontradas:', outgoingConnections?.length || 0);
+    console.log('Conexões de entrada encontradas:', incomingConnections?.length || 0);
+    
+    if ((!outgoingConnections || outgoingConnections.length === 0) && 
+        (!incomingConnections || incomingConnections.length === 0)) {
+      console.log('Nenhuma conexão encontrada para o usuário:', userId);
       return [];
     }
     
-    if (!connections || connections.length === 0) {
+    // Combinar os dois conjuntos de IDs de usuários conectados
+    const connectedIdsSet = new Set<string>();
+    
+    // Adicionar IDs dos usuários para os quais este usuário tem conexões de saída
+    outgoingConnections?.forEach(conn => {
+      connectedIdsSet.add(conn.connected_user_id);
+    });
+    
+    // Adicionar IDs dos usuários que têm conexões com este usuário
+    incomingConnections?.forEach(conn => {
+      connectedIdsSet.add(conn.user_id);
+    });
+    
+    const connectedIds = Array.from(connectedIdsSet);
+    
+    console.log('IDs únicos de usuários conectados:', connectedIds);
+    
+    if (connectedIds.length === 0) {
       return [];
     }
     
-    // Get profiles of connections
-    const connectedIds = connections.map(c => c.connected_user_id);
+    // Buscar perfis dos usuários conectados
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*')
       .in('id', connectedIds);
       
     if (profilesError) {
-      console.error('Error getting connection profiles:', profilesError);
+      console.error('Erro ao buscar perfis das conexões:', profilesError);
       return [];
     }
     
+    console.log('Perfis das conexões encontrados:', profiles?.length || 0);
+    
     return profiles || [];
   } catch (error) {
-    console.error('Error in getUserConnections:', error);
+    console.error('Erro em getUserConnections:', error);
     return [];
   }
 };
@@ -86,18 +124,66 @@ export const addConnection = async (userId: string, connectionId: string): Promi
 
 export const removeConnection = async (userId: string, connectionId: string): Promise<boolean> => {
   try {
-    const { error } = await supabase
+    console.log(`Removendo conexão: user_id=${userId}, connected_user_id=${connectionId}`);
+    
+    let successCount = 0;
+    
+    // Primeiro, removemos a conexão no sentido userId -> connectionId (se existir)
+    const { data: outgoingConnection, error: queryError } = await supabase
       .from('user_connections')
-      .delete()
+      .select('id')
       .eq('user_id', userId)
       .eq('connected_user_id', connectionId);
       
-    if (error) {
-      console.error('Error removing connection:', error);
-      return false;
+    if (queryError) {
+      console.error('Erro ao consultar conexão de saída:', queryError);
+    } else if (outgoingConnection && outgoingConnection.length > 0) {
+      console.log('Conexão de saída encontrada:', outgoingConnection[0].id);
+      
+      const { error: deleteError } = await supabase
+        .from('user_connections')
+        .delete()
+        .eq('id', outgoingConnection[0].id);
+        
+      if (deleteError) {
+        console.error('Erro ao remover conexão de saída:', deleteError);
+      } else {
+        console.log('Conexão de saída removida com sucesso');
+        successCount++;
+      }
+    } else {
+      console.log('Nenhuma conexão de saída encontrada');
     }
     
-    return true;
+    // Segundo, verificar e remover a conexão no sentido inverso: connectionId -> userId (se existir)
+    const { data: incomingConnection, error: queryError2 } = await supabase
+      .from('user_connections')
+      .select('id')
+      .eq('user_id', connectionId)
+      .eq('connected_user_id', userId);
+      
+    if (queryError2) {
+      console.error('Erro ao consultar conexão de entrada:', queryError2);
+    } else if (incomingConnection && incomingConnection.length > 0) {
+      console.log('Conexão de entrada encontrada:', incomingConnection[0].id);
+      
+      const { error: deleteError2 } = await supabase
+        .from('user_connections')
+        .delete()
+        .eq('id', incomingConnection[0].id);
+        
+      if (deleteError2) {
+        console.error('Erro ao remover conexão de entrada:', deleteError2);
+      } else {
+        console.log('Conexão de entrada removida com sucesso');
+        successCount++;
+      }
+    } else {
+      console.log('Nenhuma conexão de entrada encontrada');
+    }
+    
+    // Consideramos bem-sucedido se pelo menos uma das conexões foi removida
+    return successCount > 0;
   } catch (error) {
     console.error('Error in removeConnection:', error);
     return false;
@@ -106,19 +192,36 @@ export const removeConnection = async (userId: string, connectionId: string): Pr
 
 export const checkConnection = async (userId: string, connectionId: string): Promise<boolean> => {
   try {
-    const { data, error } = await supabase
+    // Verificar se existe conexão no sentido userId -> connectionId
+    const { data: outgoing, error: outgoingError } = await supabase
       .from('user_connections')
       .select('id')
       .eq('user_id', userId)
       .eq('connected_user_id', connectionId)
       .maybeSingle();
       
-    if (error) {
-      console.error('Error checking connection:', error);
+    if (outgoingError) {
+      console.error('Erro ao verificar conexão de saída:', outgoingError);
+    } else if (outgoing) {
+      // Se encontrou uma conexão de saída, já é suficiente
+      return true;
+    }
+    
+    // Se não encontrou, verificar no sentido inverso: connectionId -> userId
+    const { data: incoming, error: incomingError } = await supabase
+      .from('user_connections')
+      .select('id')
+      .eq('user_id', connectionId)
+      .eq('connected_user_id', userId)
+      .maybeSingle();
+      
+    if (incomingError) {
+      console.error('Erro ao verificar conexão de entrada:', incomingError);
       return false;
     }
     
-    return !!data;
+    // Retornar true se encontrou alguma conexão (entrada ou saída)
+    return !!incoming || !!outgoing;
   } catch (error) {
     console.error('Error in checkConnection:', error);
     return false;

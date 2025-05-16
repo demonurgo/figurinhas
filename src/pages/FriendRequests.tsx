@@ -1,11 +1,11 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
-import { ArrowLeft, Search, UserPlus, Check, X } from "lucide-react";
+import { ArrowLeft, Search, UserPlus, Check, X, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { FriendRequest } from "@/models/StickerTypes";
@@ -18,20 +18,38 @@ const FriendRequests = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadPendingRequests();
-  }, [currentUser]);
-
-  const loadPendingRequests = async () => {
+  const loadPendingRequests = useCallback(async () => {
     if (!currentUser) return;
-    setIsLoading(true);
+    setRefreshing(true);
+    console.log("Carregando solicitações pendentes para o usuário:", currentUser.id);
     const requests = await getPendingFriendRequests();
+    console.log('Solicitações carregadas:', requests);
     setPendingRequests(requests);
     setIsLoading(false);
-  };
+    setRefreshing(false);
+  }, [currentUser]);
+
+  // Carregar solicitações quando a página é carregada
+  useEffect(() => {
+    if (currentUser) {
+      loadPendingRequests();
+    }
+  }, [currentUser, loadPendingRequests]);
+
+  // Recarregar periodicamente
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (currentUser) {
+        loadPendingRequests();
+      }
+    }, 10000); // Recarregar a cada 10 segundos
+
+    return () => clearInterval(intervalId);
+  }, [currentUser, loadPendingRequests]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,14 +95,6 @@ const FriendRequests = () => {
     }
   };
 
-  if (isLoading && pendingRequests.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-sticker-purple-dark">Carregando...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -101,6 +111,16 @@ const FriendRequests = () => {
             </Button>
             <h1 className="text-xl font-bold">Amigos</h1>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadPendingRequests}
+            disabled={refreshing}
+            className="flex items-center gap-1"
+          >
+            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+            Atualizar
+          </Button>
         </div>
       </header>
 
@@ -136,6 +156,7 @@ const FriendRequests = () => {
                       <div>
                         <p className="font-medium">{user.full_name || user.username}</p>
                         <p className="text-sm text-gray-500">@{user.username}</p>
+                        <p className="text-xs text-gray-400">ID: {user.id.slice(0, 8)}...</p>
                       </div>
                     </div>
                     <Button 
@@ -156,10 +177,19 @@ const FriendRequests = () => {
         <div>
           <h2 className="text-lg font-bold mb-4">Solicitações de Amizade</h2>
           
-          {pendingRequests.length === 0 ? (
+          {isLoading ? (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <div className="animate-pulse">Carregando solicitações...</div>
+              </CardContent>
+            </Card>
+          ) : pendingRequests.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center">
                 <p className="text-gray-500">Você não tem solicitações de amizade pendentes.</p>
+                <p className="text-xs text-gray-400 mt-2">
+                  Última atualização: {new Date().toLocaleTimeString()}
+                </p>
               </CardContent>
             </Card>
           ) : (
@@ -171,12 +201,23 @@ const FriendRequests = () => {
                       <Avatar>
                         <AvatarImage src={request.sender?.avatar_url || undefined} />
                         <AvatarFallback>
-                          {request.sender?.full_name?.charAt(0) || request.sender?.username?.charAt(0) || '?'}
+                          {request.sender?.full_name?.charAt(0) || 
+                           request.sender?.username?.charAt(0) || 
+                           'U'}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium">{request.sender?.full_name || request.sender?.username}</p>
-                        <p className="text-sm text-gray-500">@{request.sender?.username}</p>
+                        <p className="font-medium">
+                          {request.sender?.full_name || 
+                           request.sender?.username || 
+                           `Usuário (${request.sender_id.slice(0, 8)}...)`}
+                        </p>
+                        {request.sender?.username && (
+                          <p className="text-sm text-gray-500">@{request.sender.username}</p>
+                        )}
+                        <p className="text-xs text-gray-400">
+                          ID: {request.id} / Emissor: {request.sender_id.slice(0, 8)}...
+                        </p>
                       </div>
                     </div>
                     <div className="flex gap-2">

@@ -1,11 +1,11 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Search, UserPlus, UserMinus, User, Bell } from "lucide-react";
+import { ArrowLeft, Search, UserPlus, UserMinus, User, Bell, RefreshCw } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { getUserConnections, searchUsers, removeConnection } from "@/services/ProfileService";
@@ -18,18 +18,26 @@ const Connections = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadConnections();
+  const loadConnections = useCallback(async () => {
+    if (currentUser) {
+      setRefreshing(true);
+      console.log('Carregando conexões para o usuário atual...');
+      const userConnections = await getUserConnections(currentUser.id);
+      console.log('Conexões carregadas:', userConnections);
+      setConnections(userConnections);
+      setIsLoading(false);
+      setRefreshing(false);
+    }
   }, [currentUser]);
 
-  const loadConnections = async () => {
-    if (currentUser) {
-      const userConnections = await getUserConnections(currentUser.id);
-      setConnections(userConnections);
-    }
-  };
+  // Carregar conexões quando o componente inicializar
+  useEffect(() => {
+    loadConnections();
+  }, [currentUser, loadConnections]);
 
   const handleSearch = async () => {
     if (!searchTerm.trim() || !currentUser) return;
@@ -103,14 +111,26 @@ const Connections = () => {
             </Button>
             <h1 className="text-xl font-bold">Suas Conexões</h1>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => navigate('/friend-requests')}
-            className="flex items-center"
-          >
-            <Bell size={16} className="mr-2" />
-            Solicitações
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadConnections}
+              disabled={refreshing}
+              className="flex items-center gap-1"
+            >
+              <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+              Atualizar
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/friend-requests')}
+              className="flex items-center"
+            >
+              <Bell size={16} className="mr-2" />
+              Solicitações
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -170,7 +190,13 @@ const Connections = () => {
         
         {/* Connections List */}
         <h2 className="text-lg font-bold mb-3">Suas Conexões</h2>
-        {connections.length > 0 ? (
+        {isLoading ? (
+          <Card>
+            <CardContent className="p-6 flex justify-center items-center">
+              <div className="animate-pulse text-sticker-purple-dark">Carregando conexões...</div>
+            </CardContent>
+          </Card>
+        ) : connections.length > 0 ? (
           <div className="space-y-3">
             {connections.map((connection) => (
               <Card key={connection.id}>
@@ -211,6 +237,9 @@ const Connections = () => {
             <CardContent className="p-6 text-center text-gray-500">
               <p>Você ainda não tem conexões.</p>
               <p className="text-sm mt-1">Busque por usuários para adicionar à sua lista.</p>
+              <p className="text-xs text-gray-400 mt-3">
+                Última atualização: {new Date().toLocaleTimeString()}
+              </p>
             </CardContent>
           </Card>
         )}
