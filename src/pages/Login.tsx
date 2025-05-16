@@ -44,8 +44,7 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-white to-sticker-purple-light">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-sticker-purple-dark">Álbum de Figurinhas</h1>
-          <p className="text-gray-600">Fernanda Pessoa</p>
+          <h1 className="text-3xl font-bold text-sticker-purple-dark">O álbum de figurinhas mais incrivel da sua vida</h1>
         </div>
 
         <Card>
@@ -86,10 +85,6 @@ const Login = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
-              </div>
-
-              <div className="text-sm text-gray-500">
-                <p>Para teste, use admin@test.com e senha admin123</p>
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">

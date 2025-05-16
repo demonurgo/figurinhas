@@ -141,8 +141,7 @@ const Dashboard = () => {
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold text-sticker-purple-dark">Álbum de Figurinhas</h1>
-            <p className="text-sm text-gray-600">Fernanda Pessoa</p>
+            <h1 className="text-xl font-bold text-sticker-purple-dark">O álbum de figurinhas mais incrivel da sua vida</h1>
           </div>
           <div className="flex gap-2">
             <Button 
