@@ -227,12 +227,43 @@ const ConnectionStickerDetail = () => {
 
         {/* Notes Card */}
         {sticker.notes && (
-          <Card>
+          <Card className="mb-6">
             <CardHeader>
               <CardTitle className="text-lg">Anotações</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-gray-700">{sticker.notes}</p>
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* Duplicates Card */}
+        {sticker.collected && sticker.quantity && sticker.quantity > 1 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Duplicatas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col items-center">
+                <p className="text-lg font-medium mb-2">{sticker.quantity} exemplares</p>
+                <p className="text-center text-sm text-gray-500">
+                  {username} possui {sticker.quantity} exemplares desta figurinha.
+                </p>
+                
+                {sticker.quantity > 1 && (
+                  <div className="mt-4 text-center">
+                    <p className="text-xs text-gray-500 mb-2">
+                      Esta figurinha está disponível para troca!
+                    </p>
+                    <Button
+                      className="mt-2 bg-sticker-purple hover:bg-sticker-purple-dark"
+                      onClick={() => navigate(`/trade-request/${userId}/${stickerNumber}`)}
+                    >
+                      Propor troca
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         )}

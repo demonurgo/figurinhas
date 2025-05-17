@@ -24,6 +24,7 @@ export interface SupabaseSticker {
   photo_url: string | null;
   notes: string | null;
   date_collected: string;
+  quantity: number;
   created_at: string;
   updated_at: string;
 }

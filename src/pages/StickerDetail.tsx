@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -59,6 +58,7 @@ const StickerDetail = () => {
   const [showDeleteStickerDialog, setShowDeleteStickerDialog] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUpdatingQuantity, setIsUpdatingQuantity] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -70,11 +70,13 @@ const StickerDetail = () => {
         if (foundSticker) {
           setSticker(foundSticker);
           setNotes(foundSticker.notes || "");
+          // Removido repeatedCount
         } else {
           // Create a new sticker if not found
           const newSticker: Sticker = {
             id: stickerId,
-            collected: false
+            collected: false,
+            quantity: 0
           };
           setSticker(newSticker);
         }
@@ -90,7 +92,9 @@ const StickerDetail = () => {
     const updatedSticker: Sticker = {
       ...sticker,
       collected: !sticker.collected,
-      dateCollected: !sticker.collected ? new Date().toISOString() : undefined
+      dateCollected: !sticker.collected ? new Date().toISOString() : undefined,
+      // When marking as collected, set quantity to 1 if it's not already set
+      quantity: !sticker.collected ? 1 : sticker.quantity
     };
     
     const success = await updateSticker(currentUser.id, updatedSticker);
@@ -293,6 +297,36 @@ const StickerDetail = () => {
     }
   };
 
+  const handleUpdateQuantity = async (newQuantity: number) => {
+    if (!sticker || !currentUser || newQuantity < 1) return;
+    
+    setIsUpdatingQuantity(true);
+    
+    const updatedSticker: Sticker = {
+      ...sticker,
+      quantity: newQuantity
+    };
+    
+    const success = await updateSticker(currentUser.id, updatedSticker);
+    
+    if (success) {
+      setSticker(updatedSticker);
+      
+      toast({
+        title: "Quantidade atualizada",
+        description: `Agora você tem ${newQuantity} exemplar${newQuantity !== 1 ? 'es' : ''} desta figurinha.`
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível atualizar a quantidade da figurinha."
+      });
+    }
+    
+    setIsUpdatingQuantity(false);
+  };
+
   if (!sticker) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -466,7 +500,7 @@ const StickerDetail = () => {
 
         {/* Notes Card - Only show if collected */}
         {sticker.collected && (
-          <Card>
+          <Card className="mb-6">
             <CardHeader>
               <CardTitle className="text-lg">Anotações</CardTitle>
             </CardHeader>
@@ -486,6 +520,60 @@ const StickerDetail = () => {
                 Salvar
               </Button>
             </CardFooter>
+          </Card>
+        )}
+
+        {/* Duplicates Card - Only show if collected */}
+        {sticker.collected && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Duplicatas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col items-center">
+                <div className="flex items-center justify-center mb-4">
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={() => handleUpdateQuantity(Math.max(1, (sticker.quantity || 1) - 1))}
+                    disabled={isUpdatingQuantity || (sticker.quantity || 1) <= 1}
+                    className="h-10 w-10 rounded-l-md rounded-r-none"
+                  >
+                    -
+                  </Button>
+                  <div className="h-10 px-4 flex items-center justify-center border-y border-input bg-transparent text-lg font-medium">
+                    {sticker.quantity || 1}
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={() => handleUpdateQuantity((sticker.quantity || 1) + 1)}
+                    disabled={isUpdatingQuantity}
+                    className="h-10 w-10 rounded-r-md rounded-l-none"
+                  >
+                    +
+                  </Button>
+                </div>
+                
+                <p className="text-center text-sm text-gray-500">
+                  {sticker.quantity && sticker.quantity > 1 
+                    ? `Você tem ${sticker.quantity} exemplares desta figurinha` 
+                    : "Você tem 1 exemplar desta figurinha"}
+                </p>
+                
+                <p className="text-xs text-gray-400 mt-1">
+                  Use os botões + e - para indicar quantos exemplares você possui
+                </p>
+                
+                {sticker.quantity && sticker.quantity > 1 && (
+                  <div className="mt-4 text-center">
+                    <p className="text-xs text-gray-500 mb-2">
+                      Figurinhas repetidas podem ser trocadas com outros usuários!
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
           </Card>
         )}
       </div>

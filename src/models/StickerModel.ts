@@ -9,6 +9,7 @@ export interface Sticker {
   photoUrl?: string;
   dateCollected?: string;
   notes?: string;
+  quantity: number;
 }
 
 // Helper function to get stickers from Supabase
@@ -25,10 +26,11 @@ export const getStickersByUserId = async (userId: string): Promise<Sticker[]> =>
       return [];
     }
     
-    // Initialize all 184 stickers
-    const allStickers: Sticker[] = Array.from({ length: 184 }, (_, index) => ({
+    // Initialize all stickers (1-200)
+    const allStickers: Sticker[] = Array.from({ length: 200 }, (_, index) => ({
       id: index + 1,
-      collected: false
+      collected: false,
+      quantity: 0
     }));
     
     // If user has stickers in Supabase
@@ -42,7 +44,8 @@ export const getStickersByUserId = async (userId: string): Promise<Sticker[]> =>
             collected: dbSticker.collected,
             photoUrl: dbSticker.photo_url || undefined,
             dateCollected: dbSticker.date_collected,
-            notes: dbSticker.notes || undefined
+            notes: dbSticker.notes || undefined,
+            quantity: dbSticker.quantity || 1
           };
         }
       });
@@ -81,6 +84,7 @@ export const updateSticker = async (userId: string, sticker: Sticker): Promise<b
       photo_url: sticker.photoUrl || null,
       notes: sticker.notes || null,
       date_collected: sticker.collected ? (sticker.dateCollected || new Date().toISOString()) : null,
+      quantity: sticker.quantity || 1,
       updated_at: new Date().toISOString()
     };
     
@@ -158,7 +162,8 @@ export const getConnectionStickers = async (connectionId: string): Promise<Stick
       collected: sticker.collected,
       photoUrl: sticker.photo_url || undefined,
       dateCollected: sticker.date_collected,
-      notes: sticker.notes || undefined
+      notes: sticker.notes || undefined,
+      quantity: sticker.quantity || 1
     }));
   } catch (error) {
     console.error('Error in getConnectionStickers:', error);
