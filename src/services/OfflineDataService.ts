@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Sticker } from "@/models/StickerModel";
 import { Profile } from "@/models/StickerTypes";
+// Remove the import of updateProfile as we'll use inline implementation
 
 // Database configuration
 const DB_NAME = 'figurinhas-offline-db';
@@ -249,9 +250,19 @@ export const syncPendingActions = async (): Promise<boolean> => {
         success = await updateSticker(action.userId, action.data);
       }
       else if (action.type === 'UPDATE_PROFILE') {
-        // Import the function dynamically to avoid circular dependencies
-        const { updateUserProfile } = await import('@/services/ProfileService');
-        success = !!(await updateUserProfile(action.data));
+        // Implement updateProfile inline instead of importing
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .update(action.data)
+            .eq('id', action.userId)
+            .select();
+          
+          success = !error && !!data;
+        } catch (err) {
+          console.error('Error updating profile:', err);
+          success = false;
+        }
       }
       
       if (success) {
@@ -376,10 +387,18 @@ export const isOnline = (): boolean => {
 
 // Register for service worker sync when back online
 export const registerSync = async (): Promise<void> => {
-  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+  if ('serviceWorker' in navigator) {
     try {
       const registration = await navigator.serviceWorker.ready;
-      await registration.sync.register('sync-stickers');
+      
+      // Check if sync is supported
+      if ('sync' in registration) {
+        await registration.sync.register('sync-stickers');
+      } else {
+        // Manually sync if background sync is not supported
+        void syncPendingActions();
+        void syncPendingUploads();
+      }
     } catch (error) {
       console.error('Error registering sync:', error);
       // Manually sync if background sync registration fails
@@ -387,7 +406,7 @@ export const registerSync = async (): Promise<void> => {
       void syncPendingUploads();
     }
   } else {
-    // Manually sync if background sync is not supported
+    // Manually sync if service worker is not supported
     void syncPendingActions();
     void syncPendingUploads();
   }
