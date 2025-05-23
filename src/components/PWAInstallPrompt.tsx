@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { Download, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,28 +9,35 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-const PWAInstallPrompt: React.FC = () => {
+// Use memo to prevent unnecessary re-renders
+const PWAInstallPrompt: React.FC = memo(() => {
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [showIOSPrompt, setShowIOSPrompt] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
+  // Use useCallback for handlers to prevent recreating functions on each render
+  const handleBeforeInstallPrompt = useCallback((e: Event) => {
+    // Prevent Chrome 67 and earlier from automatically showing the prompt
+    e.preventDefault();
+    // Store the event to trigger it later
+    setDeferredPrompt(e as BeforeInstallPromptEvent);
+    // Show the install button
+    setShowInstallPrompt(true);
+  }, []);
+
+  // Check localStorage outside of useEffect to avoid unnecessary effect dependencies
+  const hasSeenIOSHint = localStorage.getItem('hasSeenIOSHint') === 'true';
+  const dontShowInstallPrompt = localStorage.getItem('dontShowInstallPrompt') === 'true';
+
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      // Prevent Chrome 67 and earlier from automatically showing the prompt
-      e.preventDefault();
-      // Store the event to trigger it later
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      // Show the install button
-      setShowInstallPrompt(true);
-    };
+    // Early return if user has chosen not to see the prompt
+    if (dontShowInstallPrompt) return;
 
     // Check if user is on iOS but not already running in standalone mode
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     
     // Only show iOS hint if on iOS, not in standalone mode, and hasn't dismissed before
-    const hasSeenIOSHint = localStorage.getItem('hasSeenIOSHint') === 'true';
-    
     if (isIOS && !isStandalone && !hasSeenIOSHint) {
       setShowIOSPrompt(true);
     }
@@ -40,10 +47,10 @@ const PWAInstallPrompt: React.FC = () => {
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, []);
+  }, [handleBeforeInstallPrompt, hasSeenIOSHint, dontShowInstallPrompt]);
 
-  // Handle the install button click
-  const handleInstallClick = async () => {
+  // Use useCallback for event handlers
+  const handleInstallClick = useCallback(async () => {
     if (!deferredPrompt) return;
 
     // Show the install prompt
@@ -58,19 +65,19 @@ const PWAInstallPrompt: React.FC = () => {
     
     // Track outcome
     console.log(`User ${choiceResult.outcome === 'accepted' ? 'accepted' : 'dismissed'} the install prompt`);
-  };
+  }, [deferredPrompt]);
 
   // Hide the install hint
-  const hideInstallHint = () => {
+  const hideInstallHint = useCallback(() => {
     setShowInstallPrompt(false);
     localStorage.setItem('dontShowInstallPrompt', 'true'); // Remember user's choice
-  };
+  }, []);
 
   // Hide iOS hint
-  const hideIOSHint = () => {
+  const hideIOSHint = useCallback(() => {
     setShowIOSPrompt(false);
     localStorage.setItem('hasSeenIOSHint', 'true');
-  };
+  }, []);
 
   // If no prompt to show, render nothing
   if (!showInstallPrompt && !showIOSPrompt) return null;
@@ -128,6 +135,9 @@ const PWAInstallPrompt: React.FC = () => {
       </div>
     </Card>
   );
-};
+});
+
+// Add displayName for debugging purposes
+PWAInstallPrompt.displayName = 'PWAInstallPrompt';
 
 export default PWAInstallPrompt;
