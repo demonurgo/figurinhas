@@ -1,20 +1,17 @@
 
 import { createRoot } from 'react-dom/client'
-import { StrictMode, lazy, Suspense } from 'react'
-import { initOfflineService } from "./services/OfflineDataService"
+import App from './App.tsx'
 import './index.css'
-
-// Lazy-load non-critical components
-const App = lazy(() => import('./App.tsx'))
-const SpeedInsights = lazy(() => import('@vercel/speed-insights/react').then(module => ({ default: module.SpeedInsights })))
-const Analytics = lazy(() => import('@vercel/analytics/react').then(module => ({ default: module.Analytics })))
+import { SpeedInsights } from "@vercel/speed-insights/react"
+import { Analytics } from "@vercel/analytics/react"
+import { initOfflineService } from "./services/OfflineDataService"
 
 // Initialize offline data service
 initOfflineService().catch(error => {
   console.error('Failed to initialize offline service:', error);
 });
 
-// Register service worker for PWA functionality with improved error handling
+// Register service worker for PWA functionality
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js')
@@ -27,17 +24,10 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Create root with StrictMode for better development experience and performance
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <Suspense fallback={
-      <div className="flex items-center justify-center h-screen">
-        <div className="w-16 h-16 border-4 border-sticker-purple border-solid rounded-full border-t-transparent animate-spin"></div>
-      </div>
-    }>
-      <App />
-      <SpeedInsights />
-      <Analytics />
-    </Suspense>
-  </StrictMode>
+  <>
+    <App />
+    <SpeedInsights />
+    <Analytics />
+  </>
 );

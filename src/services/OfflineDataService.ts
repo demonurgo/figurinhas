@@ -2,7 +2,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Sticker } from "@/models/StickerModel";
 import { Profile } from "@/models/StickerTypes";
-import { updateProfile } from "@/services/ProfileService";
 
 // Database configuration
 const DB_NAME = 'figurinhas-offline-db';
@@ -250,8 +249,9 @@ export const syncPendingActions = async (): Promise<boolean> => {
         success = await updateSticker(action.userId, action.data);
       }
       else if (action.type === 'UPDATE_PROFILE') {
-        // Use the imported updateProfile function
-        success = !!(await updateProfile(action.data));
+        // Import the function dynamically to avoid circular dependencies
+        const { updateUserProfile } = await import('@/services/ProfileService');
+        success = !!(await updateUserProfile(action.data));
       }
       
       if (success) {
@@ -376,18 +376,10 @@ export const isOnline = (): boolean => {
 
 // Register for service worker sync when back online
 export const registerSync = async (): Promise<void> => {
-  if ('serviceWorker' in navigator) {
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
     try {
       const registration = await navigator.serviceWorker.ready;
-      
-      // Check if sync is supported
-      if ('sync' in registration) {
-        await registration.sync.register('sync-stickers');
-      } else {
-        // Manually sync if background sync is not supported
-        void syncPendingActions();
-        void syncPendingUploads();
-      }
+      await registration.sync.register('sync-stickers');
     } catch (error) {
       console.error('Error registering sync:', error);
       // Manually sync if background sync registration fails
@@ -395,7 +387,7 @@ export const registerSync = async (): Promise<void> => {
       void syncPendingUploads();
     }
   } else {
-    // Manually sync if service worker is not supported
+    // Manually sync if background sync is not supported
     void syncPendingActions();
     void syncPendingUploads();
   }

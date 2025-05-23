@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'figurinhas-v3';  // Updated cache version for new optimizations
+const CACHE_NAME = 'figurinhas-v2';  // Updating cache version
 
 // List of resources to cache for offline use
 const urlsToCache = [
@@ -19,6 +19,7 @@ const urlsToCache = [
   '/icons/icon-192x192.png',
   '/icons/icon-384x384.png',
   '/icons/icon-512x512.png',
+  // CSS and JS assets will be cached dynamically
 ];
 
 // Data that will be stored in IndexedDB for offline use
@@ -50,11 +51,11 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames.filter(cacheName => {
-          return cacheName.startsWith('figurinhas-') && cacheName !== CACHE_NAME;
-        }).map((cacheName) => {
-          console.log('Removing old cache:', cacheName);
-          return caches.delete(cacheName);
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('Removing old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
         })
       );
     }).then(() => {
@@ -100,11 +101,8 @@ function openDatabase() {
   });
 }
 
-// Optimized network-first strategy with fallback to cache
+// Network-first strategy with fallback to cache
 async function networkFirstStrategy(request, additionalCachableUrls = []) {
-  const requestClone = request.clone();
-  const cacheKey = request.url.includes('?') ? new URL(request.url).pathname : request.url;
-  
   // Try network first
   try {
     const networkResponse = await fetch(request);
@@ -120,7 +118,7 @@ async function networkFirstStrategy(request, additionalCachableUrls = []) {
       // Cache successful response for future offline use
       if (isCachable) {
         const cache = await caches.open(CACHE_NAME);
-        cache.put(cacheKey, networkResponse.clone());
+        cache.put(request, networkResponse.clone());
       }
       
       return networkResponse;
@@ -130,7 +128,7 @@ async function networkFirstStrategy(request, additionalCachableUrls = []) {
   }
   
   // If network request fails, try to get from cache
-  const cachedResponse = await caches.match(cacheKey) || await caches.match(request);
+  const cachedResponse = await caches.match(request);
   if (cachedResponse) {
     return cachedResponse;
   }
@@ -157,26 +155,19 @@ async function networkFirstStrategy(request, additionalCachableUrls = []) {
   return new Response('Resource not available offline');
 }
 
-// Optimized cache-first strategy for static assets
+// Cache-first strategy for static assets
 async function cacheFirstStrategy(request) {
-  const cacheKey = request.url.includes('?') ? new URL(request.url).pathname : request.url;
-  
-  // Try cache first
-  const cachedResponse = await caches.match(cacheKey) || await caches.match(request);
+  const cachedResponse = await caches.match(request);
   if (cachedResponse) {
     return cachedResponse;
   }
   
-  // If not in cache, try network
   try {
     const networkResponse = await fetch(request);
-    
-    // Cache the response for future use if valid
     if (networkResponse.status === 200) {
       const cache = await caches.open(CACHE_NAME);
-      cache.put(cacheKey, networkResponse.clone());
+      cache.put(request, networkResponse.clone());
     }
-    
     return networkResponse;
   } catch (error) {
     console.log('Both cache and network failed:', error);
@@ -194,10 +185,6 @@ async function storeOfflineData(storeName, data) {
     
     request.onsuccess = () => resolve(true);
     request.onerror = () => reject(request.error);
-    
-    // Add transaction complete/error handlers for better reliability
-    transaction.oncomplete = () => resolve(true);
-    transaction.onerror = () => reject(transaction.error);
   });
 }
 
@@ -236,7 +223,7 @@ async function processPendingRequests() {
   try {
     console.log('Processing pending requests...');
     const requests = await getOfflineData(STORES.PENDING_REQUESTS);
-    if (!requests || requests.length === 0) return true;
+    if (!requests || requests.length === 0) return;
     
     console.log(`Found ${requests.length} pending requests`);
     
@@ -244,64 +231,34 @@ async function processPendingRequests() {
     const transaction = db.transaction(STORES.PENDING_REQUESTS, 'readwrite');
     const store = transaction.objectStore(STORES.PENDING_REQUESTS);
     
-    // Track successfully processed requests
-    const processed = [];
-    const failed = [];
-    
-    // Process requests in batches for better performance
-    const batchSize = 5;
-    for (let i = 0; i < requests.length; i += batchSize) {
-      const batch = requests.slice(i, i + batchSize);
-      const batchPromises = batch.map(async request => {
-        try {
-          const response = await fetch(request.url, {
-            method: request.method,
-            headers: request.headers,
-            body: request.body ? JSON.parse(request.body) : undefined
-          });
-          
-          if (response.ok) {
-            processed.push(request.id);
-            return true;
-          } else {
-            failed.push({id: request.id, status: response.status});
-            return false;
-          }
-        } catch (error) {
-          console.error(`Failed to process request: ${request.url}`, error);
-          failed.push({id: request.id, error: error.message});
-          return false;
+    for (const request of requests) {
+      try {
+        const response = await fetch(request.url, {
+          method: request.method,
+          headers: request.headers,
+          body: request.body ? JSON.parse(request.body) : undefined
+        });
+        
+        if (response.ok) {
+          // Remove processed request from queue
+          store.delete(request.id);
+          console.log(`Request processed successfully: ${request.url}`);
         }
-      });
-      
-      // Wait for current batch to complete before moving to next
-      await Promise.all(batchPromises);
+      } catch (error) {
+        console.error(`Failed to process request: ${request.url}`, error);
+      }
     }
-    
-    // Remove processed requests
-    if (processed.length > 0) {
-      processed.forEach(id => store.delete(id));
-    }
-    
-    await new Promise(resolve => {
-      transaction.oncomplete = resolve;
-      transaction.onerror = resolve; // Still resolve to continue even if errors
-    });
-    
-    console.log(`Processed ${processed.length} requests, ${failed.length} failed`);
-    return processed.length > 0;
   } catch (error) {
     console.error('Error processing pending requests:', error);
-    return false;
   }
 }
 
-// Fetch event - Intercept requests with improved strategy detection
+// Fetch event - Intercept requests
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
   
-  // Skip cross-origin requests
+  // Skip cross-origin requests and non-GET API requests
   if (url.origin !== self.location.origin) {
     // For Supabase or other API requests that fail when offline, 
     // we'll notify the frontend via a custom response status
@@ -331,28 +288,29 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Determine caching strategy based on URL pattern
-  const isNavigationRequest = request.mode === 'navigate';
-  const isStaticAsset = request.url.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2)$/);
-  const isAPIRequest = request.url.includes('/api/');
+  // For navigation requests, use a network-first strategy
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirstStrategy(request));
+    return;
+  }
   
-  // Apply the appropriate caching strategy
-  if (isNavigationRequest) {
-    event.respondWith(networkFirstStrategy(request));
-  }
-  else if (isStaticAsset) {
+  // For static assets, use cache-first strategy
+  if (request.url.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2)$/)) {
     event.respondWith(cacheFirstStrategy(request));
+    return;
   }
-  else if (isAPIRequest) {
+  
+  // For API requests, use network first with offline fallback
+  if (request.url.includes('/api/')) {
     event.respondWith(networkFirstStrategy(request));
+    return;
   }
-  else {
-    // Default strategy
-    event.respondWith(networkFirstStrategy(request));
-  }
+  
+  // Default to network first strategy for everything else
+  event.respondWith(networkFirstStrategy(request));
 });
 
-// Handle sync events more efficiently
+// Sync event - Process pending uploads and requests
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-stickers') {
     event.waitUntil(processPendingRequests());
@@ -375,7 +333,7 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Handle push notifications more efficiently
+// Handle push notifications
 self.addEventListener('push', (event) => {
   if (event.data) {
     const data = event.data.json();
@@ -385,7 +343,7 @@ self.addEventListener('push', (event) => {
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-72x72.png',
       data: {
-        url: data.url || '/'
+        url: data.url
       }
     };
     
@@ -399,24 +357,7 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
-  // Focus on existing window or open a new one
   event.waitUntil(
-    clients.matchAll({
-      type: 'window',
-      includeUncontrolled: true
-    }).then(function(clientList) {
-      // Check if there is already a window/tab open with the target URL
-      for (var i = 0; i < clientList.length; i++) {
-        var client = clientList[i];
-        // If so, just focus it.
-        if (client.url === event.notification.data.url && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      // If not, open a new window.
-      if (clients.openWindow) {
-        return clients.openWindow(event.notification.data.url);
-      }
-    })
+    clients.openWindow(event.notification.data.url || '/')
   );
 });
