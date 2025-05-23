@@ -1,15 +1,20 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Profile } from "@/models/StickerTypes";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
+
+export type FriendRequestStatus = "pending" | "accepted" | "rejected";
 
 export interface FriendRequest {
   id: string;
   sender_id: string;
   recipient_id: string;
-  status: 'pending' | 'accepted' | 'rejected';
+  status: FriendRequestStatus;
   created_at: string;
-  sender?: Profile;
-  recipient?: Profile;
+  sender?: {
+    id: string;
+    username: string;
+    full_name: string | null;
+    avatar_url: string | null;
+  };
 }
 
 export const getPendingFriendRequestCount = async (): Promise<number> => {
@@ -194,61 +199,33 @@ export const sendFriendRequest = async (recipientId: string): Promise<boolean> =
 
 export const getPendingFriendRequests = async (): Promise<FriendRequest[]> => {
   try {
-    // Obter usuário atual
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData || !userData.user) {
-      console.error('Erro ao obter usuário atual:', userError);
-      return [];
-    }
-    
-    const currentUserId = userData.user.id;
-    console.log('ID do usuário atual (destinatário):', currentUserId);
-    
-    // Consulta direta por solicitações destinadas ao usuário atual
-    const { data: requests, error: requestsError } = await supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
       .from('friend_requests')
-      .select('id, sender_id, recipient_id, status, created_at')
-      .eq('recipient_id', currentUserId)
+      .select(`
+        *,
+        sender:profiles!friend_requests_sender_id_fkey (
+          id,
+          username,
+          full_name,
+          avatar_url
+        )
+      `)
+      .eq('recipient_id', user.id)
       .eq('status', 'pending');
-    
-    if (requestsError) {
-      console.error('Erro ao buscar solicitações de amizade:', requestsError);
+
+    if (error) {
+      console.error('Error fetching friend requests:', error);
+      toast.error('Erro ao carregar solicitações de amizade');
       return [];
     }
-    
-    console.log('Solicitações encontradas (direto):', requests);
-    
-    if (!requests || requests.length === 0) {
-      console.log('Nenhuma solicitação pendente encontrada para o usuário:', currentUserId);
-      return [];
-    }
-    
-    // Obter informações dos remetentes em uma consulta separada
-    const senderIds = requests.map(req => req.sender_id);
-    const { data: senders, error: sendersError } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('id', senderIds);
-    
-    if (sendersError) {
-      console.error('Erro ao buscar perfis dos remetentes:', sendersError);
-    }
-    
-    console.log('Perfis dos remetentes encontrados:', senders);
-    
-    // Combinar dados da solicitação com dados do remetente
-    const enrichedRequests = requests.map(request => {
-      const sender = senders?.find(s => s.id === request.sender_id);
-      return {
-        ...request,
-        sender: sender || undefined
-      };
-    });
-    
-    console.log('Solicitações processadas:', enrichedRequests);
-    return enrichedRequests;
+
+    return data as FriendRequest[];
   } catch (error) {
-    console.error('Erro em getPendingFriendRequests:', error);
+    console.error('Error in getPendingFriendRequests:', error);
+    toast.error('Erro ao carregar solicitações de amizade');
     return [];
   }
 };

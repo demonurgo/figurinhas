@@ -71,6 +71,8 @@ export type Database = {
           id: string
           notes: string | null
           photo_url: string | null
+          quantity: number
+          repeated_count: number
           sticker_number: number
           updated_at: string
           user_id: string
@@ -82,6 +84,8 @@ export type Database = {
           id?: string
           notes?: string | null
           photo_url?: string | null
+          quantity?: number
+          repeated_count?: number
           sticker_number: number
           updated_at?: string
           user_id: string
@@ -93,6 +97,8 @@ export type Database = {
           id?: string
           notes?: string | null
           photo_url?: string | null
+          quantity?: number
+          repeated_count?: number
           sticker_number?: number
           updated_at?: string
           user_id?: string

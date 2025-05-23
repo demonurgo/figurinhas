@@ -154,8 +154,8 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-10">
+      {/* Header - Increased z-index to ensure it stays on top */}
+      <header className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
           <div>
             <a href="/" title="Página Inicial" className="flex items-center">
@@ -293,7 +293,7 @@ const Dashboard = () => {
         </div>
 
         {/* Sticker grid */}
-                <div className="mb-20">
+        <div className="mb-20">
           {/* Renderização por categoria */}
           {Object.entries(STICKER_CATEGORIES)
             .filter(([category]) => category !== "Todas" && (categoryFilter === "Todas" || categoryFilter === category))
