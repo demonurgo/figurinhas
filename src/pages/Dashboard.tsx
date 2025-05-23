@@ -158,7 +158,13 @@ const Dashboard = () => {
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold text-sticker-purple-dark">O álbum de figurinhas mais incrivel da sua vida</h1>
+            <a href="/" title="Página Inicial" className="flex items-center">
+              <img 
+                src="/icons/icon-72x72.png" 
+                alt="Logo do Álbum" 
+                className="h-10 w-10 rounded-full"
+              />
+            </a>
           </div>
           <div className="flex gap-2">
             <Button 
@@ -216,29 +222,11 @@ const Dashboard = () => {
       {/* Profile Summary */}
       {profile && (
         <div className="bg-sticker-purple text-white py-3">
-          <div className="max-w-4xl mx-auto px-4 flex justify-between items-center">
+          <div className="max-w-4xl mx-auto px-4">
             <div>
               <p className="font-medium">{profile.full_name || profile.username}</p>
               <p className="text-xs opacity-80">@{profile.username}</p>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="bg-white text-sticker-purple"
-              onClick={() => navigate('/profile')}
-            >
-              {profile.avatar_url ? (
-                <Avatar className="h-4 w-4 mr-1.5">
-                  <AvatarImage src={profile.avatar_url} alt="Perfil" />
-                  <AvatarFallback>
-                    <User size={14} />
-                  </AvatarFallback>
-                </Avatar>
-              ) : (
-                <User size={14} className="mr-1" />
-              )} 
-              Editar Perfil
-            </Button>
           </div>
         </div>
       )}
