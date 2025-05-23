@@ -154,17 +154,23 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header - Increased z-index to ensure it stays on top */}
-      <header className="bg-white shadow-sm sticky top-0 z-50">
+      {/* Header - Updated with new design and higher z-index */}
+      <header className="bg-white shadow-md sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
-          <div>
-            <a href="/" title="Página Inicial" className="flex items-center">
+          <div className="flex items-center gap-3">
+            <a href="/" title="Página Inicial">
               <img 
                 src="/icons/icon-72x72.png" 
                 alt="Logo do Álbum" 
                 className="h-10 w-10 rounded-full"
               />
             </a>
+            {profile && (
+              <div className="hidden sm:block">
+                <p className="font-medium">{profile.full_name || profile.username}</p>
+                <p className="text-xs opacity-80">@{profile.username}</p>
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
             <Button 
@@ -219,20 +225,8 @@ const Dashboard = () => {
         </div>
       </header>
 
-      {/* Profile Summary */}
-      {profile && (
-        <div className="bg-sticker-purple text-white py-3">
-          <div className="max-w-4xl mx-auto px-4">
-            <div>
-              <p className="font-medium">{profile.full_name || profile.username}</p>
-              <p className="text-xs opacity-80">@{profile.username}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="max-w-4xl mx-auto px-4 py-4">
+      {/* Stats - Removed the purple bar section */}
+      <div className="max-w-4xl mx-auto px-4 pt-6">
         <div className="grid grid-cols-4 gap-3 mb-4">
           <Card>
             <CardContent className="p-3 text-center">

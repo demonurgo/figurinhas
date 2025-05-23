@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -122,8 +123,8 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header - Increased z-index to ensure it stays on top */}
-      <header className="bg-white shadow-sm sticky top-0 z-50">
+      {/* Header - Updated with new design and higher z-index */}
+      <header className="bg-white shadow-md sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center">
             <Button 
@@ -135,6 +136,12 @@ const Profile = () => {
               <ArrowLeft size={20} />
             </Button>
             <h1 className="text-xl font-bold">Seu Perfil</h1>
+            {profile && (
+              <div className="hidden sm:block ml-4">
+                <p className="text-sm font-medium">{profile.full_name || profile.username}</p>
+                <p className="text-xs opacity-80">@{profile.username}</p>
+              </div>
+            )}
           </div>
           
           <Button 

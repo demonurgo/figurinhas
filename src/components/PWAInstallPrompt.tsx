@@ -1,84 +1,94 @@
-import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
 
-const PWAInstallPrompt = () => {
-  const [showPrompt, setShowPrompt] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
+import React, { useState, useEffect } from 'react';
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+const PWAInstallPrompt: React.FC = () => {
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
-    // Verificar se o aplicativo está instalado
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true);
-      return;
-    }
-
-    // Verificar se é iOS
-    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    setIsIOS(iOS);
-
-    // Critérios para mostrar a mensagem
-    const shouldShow = () => {
-      // Verificar se a mensagem já foi fechada recentemente
-      const lastClosed = localStorage.getItem('pwaPromptClosed');
-      if (lastClosed) {
-        const lastClosedDate = new Date(parseInt(lastClosed));
-        const now = new Date();
-        // Se foi fechado há menos de 7 dias, não mostrar
-        if ((now.getTime() - lastClosedDate.getTime()) < 7 * 24 * 60 * 60 * 1000) {
-          return false;
-        }
-      }
-      
-      return true;
+    const handleBeforeInstallPrompt = (e: Event) => {
+      // Prevent Chrome 67 and earlier from automatically showing the prompt
+      e.preventDefault();
+      // Store the event to trigger it later
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      // Show the install button
+      setShowInstallPrompt(true);
     };
 
-    // Mostrar após 3 segundos
-    if (shouldShow()) {
-      const timer = setTimeout(() => {
-        setShowPrompt(true);
-      }, 3000);
-      
-      return () => clearTimeout(timer);
+    // Check if user is on iOS but not already running in standalone mode
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    
+    // Fix for TypeScript error: Check if window.navigator has MSStream property
+    const isIE = typeof window !== 'undefined' && 
+                typeof navigator !== 'undefined' && 
+                /MSIE|Trident/.test(navigator.userAgent);
+
+    // Only show iOS hint if on iOS, not in standalone mode, and hasn't dismissed before
+    const hasSeenIOSHint = localStorage.getItem('hasSeenIOSHint') === 'true';
+    
+    if (isIOS && !isStandalone && !hasSeenIOSHint) {
+      // Handle iOS specific install hint
     }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []);
 
-  const closePrompt = () => {
-    setShowPrompt(false);
-    // Salvar quando foi fechado
-    localStorage.setItem('pwaPromptClosed', Date.now().toString());
+  // Handle the install button click
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+
+    // Show the install prompt
+    deferredPrompt.prompt();
+
+    // Wait for user response
+    const choiceResult = await deferredPrompt.userChoice;
+    
+    // Hide the install button regardless of outcome
+    setShowInstallPrompt(false);
+    setDeferredPrompt(null);
+    
+    // Track outcome
+    console.log(`User ${choiceResult.outcome === 'accepted' ? 'accepted' : 'dismissed'} the install prompt`);
   };
 
-  if (!showPrompt || isInstalled) return null;
+  // Hide the install hint
+  const hideInstallHint = () => {
+    setShowInstallPrompt(false);
+    localStorage.setItem('hasSeeniOSHint', 'true');
+  };
+
+  // If no prompt to show, render nothing
+  if (!showInstallPrompt) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-4 z-50 border-t border-gray-200">
-      <div className="max-w-4xl mx-auto flex items-center">
-        <div className="flex-1">
-          <h3 className="font-medium text-sm">Instale nosso aplicativo</h3>
-          <p className="text-xs text-gray-600">
-            {isIOS ? 
-              'Toque em "Compartilhar" e depois "Adicionar à Tela de Início"' : 
-              'Instale nossa app para acesso rápido e uso offline!'}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <a 
-            href="/instalar.html" 
-            className="text-xs px-3 py-1.5 bg-sticker-purple text-white rounded-md"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Como instalar
-          </a>
-          <button 
-            onClick={closePrompt}
-            className="p-1.5 text-gray-500"
-            aria-label="Fechar"
-          >
-            <X size={16} />
-          </button>
-        </div>
+    <div className="fixed bottom-4 left-4 right-4 bg-white shadow-lg rounded-lg p-4 z-50 flex justify-between items-center">
+      <div>
+        <h3 className="font-bold">Instalar o Álbum</h3>
+        <p className="text-sm">Adicione à sua tela inicial para acesso rápido.</p>
+      </div>
+      <div className="flex gap-2">
+        <button 
+          onClick={hideInstallHint}
+          className="px-3 py-1 text-gray-600 rounded"
+        >
+          Depois
+        </button>
+        <button 
+          onClick={handleInstallClick}
+          className="px-3 py-1 bg-sticker-purple text-white rounded"
+        >
+          Instalar
+        </button>
       </div>
     </div>
   );
