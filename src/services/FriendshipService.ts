@@ -8,27 +8,6 @@ interface UserResponse {
   error: Error | null;
 }
 
-// Add the missing function that's being referenced in Dashboard.tsx
-export const getPendingFriendRequestCount = async (userId: string): Promise<number> => {
-  try {
-    const { data, error } = await supabase
-      .from('friend_requests')
-      .select('id')
-      .eq('recipient_id', userId)
-      .eq('status', 'pending');
-      
-    if (error) {
-      console.error('Error fetching friend request count:', error);
-      return 0;
-    }
-    
-    return data ? data.length : 0;
-  } catch (error) {
-    console.error('Error in getPendingFriendRequestCount:', error);
-    return 0;
-  }
-};
-
 // Function to get user profile by ID
 export const getUserProfile = async (userId: string): Promise<UserResponse> => {
   const { data, error } = await supabase
@@ -122,38 +101,6 @@ export const sendFriendRequest = async (
   }
 };
 
-// Get pending friend requests for current user - added to fix FriendRequests.tsx
-export const getPendingFriendRequests = async (userId: string) => {
-  return getPendingRequests(userId);
-};
-
-// Expose searchUsers function for FriendRequests.tsx
-export const searchUsers = async (searchTerm: string): Promise<Profile[]> => {
-  try {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const currentUserId = sessionData.session?.user.id;
-    
-    if (!searchTerm || searchTerm.length < 2) return [];
-    
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .or(`username.ilike.%${searchTerm}%,full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
-      .neq('id', currentUserId) // Exclude current user
-      .limit(10);
-      
-    if (error) {
-      console.error('Error searching users:', error);
-      return [];
-    }
-    
-    return data || [];
-  } catch (error) {
-    console.error('Error in searchUsers:', error);
-    return [];
-  }
-};
-
 // Get pending friend requests for current user
 export const getPendingRequests = async (userId: string) => {
   try {
@@ -191,7 +138,7 @@ export const getPendingRequests = async (userId: string) => {
 
 // Accept friend request
 export const acceptFriendRequest = async (
-  requestId: string, 
+  requestId: number, 
   currentUserId: string, 
   senderId: string
 ): Promise<boolean> => {
@@ -214,16 +161,16 @@ export const acceptFriendRequest = async (
       return false;
     }
 
-    // Create bidirectional connections instead of friendships
+    // Create friendship entries (bidirectional)
     const { error: insertError } = await supabase
-      .from('user_connections')
+      .from('friendships')
       .insert([
-        { user_id: currentUserId, connected_user_id: senderId },
-        { user_id: senderId, connected_user_id: currentUserId }
+        { user_id: currentUserId, friend_id: senderId },
+        { user_id: senderId, friend_id: currentUserId }
       ]);
 
     if (insertError) {
-      console.error('Error creating connection:', insertError);
+      console.error('Error creating friendship:', insertError);
       
       toast({
         title: "Aviso",
@@ -258,7 +205,7 @@ export const acceptFriendRequest = async (
 };
 
 // Reject friend request
-export const rejectFriendRequest = async (requestId: string): Promise<boolean> => {
+export const rejectFriendRequest = async (requestId: number): Promise<boolean> => {
   try {
     const { error } = await supabase
       .from('friend_requests')
@@ -296,12 +243,12 @@ export const rejectFriendRequest = async (requestId: string): Promise<boolean> =
   }
 };
 
-// Get all friends for current user (using user_connections table, not friendships)
+// Get all friends for current user
 export const getFriends = async (userId: string) => {
   try {
     const { data, error } = await supabase
-      .from('user_connections')
-      .select('connected_user_id')
+      .from('friendships')
+      .select('friend_id')
       .eq('user_id', userId);
 
     if (error) {
@@ -317,7 +264,7 @@ export const getFriends = async (userId: string) => {
     }
 
     // Extract friend IDs
-    const friendIds = data.map(item => item.connected_user_id);
+    const friendIds = data.map(item => item.friend_id);
     
     if (friendIds.length === 0) {
       return [];
@@ -365,12 +312,12 @@ export const removeFriend = async (
     const friendProfile = await getUserProfile(friendId);
     const friendName = friendProfile.data?.username || 'este usuário';
 
-    // Delete bidirectional connections
+    // Delete bidirectional friendship
     const { error } = await supabase
-      .from('user_connections')
+      .from('friendships')
       .delete()
-      .or(`user_id.eq.${currentUserId},connected_user_id.eq.${friendId}`)
-      .or(`user_id.eq.${friendId},connected_user_id.eq.${currentUserId}`);
+      .or(`user_id.eq.${currentUserId},friend_id.eq.${friendId}`)
+      .or(`user_id.eq.${friendId},friend_id.eq.${currentUserId}`);
 
     if (error) {
       console.error('Error removing friend:', error);
@@ -411,20 +358,20 @@ export const checkFriendshipStatus = async (
   otherUserId: string
 ): Promise<FriendshipStatus> => {
   try {
-    // Check if they are already connected
-    const { data: connectionData, error: connectionError } = await supabase
-      .from('user_connections')
+    // Check if they are already friends
+    const { data: friendData, error: friendError } = await supabase
+      .from('friendships')
       .select('*')
       .eq('user_id', currentUserId)
-      .eq('connected_user_id', otherUserId)
+      .eq('friend_id', otherUserId)
       .single();
 
-    if (connectionData) {
+    if (friendData) {
       return 'friends';
     }
     
-    if (connectionError && connectionError.code !== 'PGRST116') {
-      console.error('Error checking friendship:', connectionError);
+    if (friendError && friendError.code !== 'PGRST116') {
+      console.error('Error checking friendship:', friendError);
     }
 
     // Check for pending requests

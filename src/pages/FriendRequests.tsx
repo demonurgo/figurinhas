@@ -1,161 +1,173 @@
-
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, X, Check, UserPlus } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
-import { getPendingRequests, searchUsers, acceptFriendRequest, rejectFriendRequest } from '@/services/FriendshipService';
-import { Profile } from '@/models/StickerTypes';
-import Header from '@/components/Header';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Check, X, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/context/AuthContext";
+import { getPendingFriendRequests, acceptFriendRequest, rejectFriendRequest, searchUsers, sendFriendRequest } from "@/services/FriendshipService";
+import type { FriendRequest, Profile } from "@/models/StickerTypes";
 
 const FriendRequests = () => {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [requests, setRequests] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+  const { profile } = useAuth();
+  const [requests, setRequests] = useState<FriendRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchFriendRequests();
-    }
-  }, [user]);
+    loadRequests();
+  }, []);
 
-  const fetchFriendRequests = async () => {
-    if (!user) return;
-
-    setIsLoading(true);
-    const data = await getPendingRequests(user.id);
-    setRequests(data);
-    setIsLoading(false);
+  const loadRequests = async () => {
+    setLoading(true);
+    const pendingRequests = await getPendingFriendRequests();
+    setRequests(pendingRequests as FriendRequest[]); // Type assertion to fix TypeScript error
+    setLoading(false);
   };
 
-  const handleAcceptRequest = async (requestId: string, senderId: string) => {
-    if (!user) return;
-
-    const success = await acceptFriendRequest(requestId, user.id, senderId);
-    
+  const handleAccept = async (requestId: string) => {
+    const success = await acceptFriendRequest(requestId);
     if (success) {
-      // Remove the request from the list
-      setRequests(prev => prev.filter(req => req.id !== requestId));
+      loadRequests();
     }
   };
 
-  const handleRejectRequest = async (requestId: string) => {
+  const handleReject = async (requestId: string) => {
     const success = await rejectFriendRequest(requestId);
-    
     if (success) {
-      // Remove the request from the list
-      setRequests(prev => prev.filter(req => req.id !== requestId));
+      loadRequests();
     }
   };
 
   const handleSearch = async () => {
-    if (searchQuery.trim().length < 2) {
-      toast({ 
-        title: "Busca muito curta", 
-        description: "Digite pelo menos 2 caracteres para buscar." 
-      });
+    if (!searchTerm || searchTerm.trim().length < 3) {
+      setSearchResults([]);
       return;
     }
-
-    setIsSearching(true);
-    const results = await searchUsers(searchQuery);
+    setSearching(true);
+    const results = await searchUsers(searchTerm);
     setSearchResults(results);
-    setIsSearching(false);
+    setSearching(false);
+  };
+
+  const handleSendRequest = async (recipientId: string) => {
+    const success = await sendFriendRequest(recipientId);
+    if (success) {
+      setSearchResults([]);
+      setSearchTerm("");
+    }
   };
 
   return (
-    <div className="container mx-auto p-4 max-w-md">
-      <Header
-        title="Solicitações de Amizade"
-        showBackButton
-        className="mb-4"
-      />
-
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-2">Buscar usuários</h2>
-        <div className="flex gap-2">
-          <Input
-            placeholder="Digite um nome ou email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1"
-          />
-          <Button onClick={handleSearch} disabled={isSearching}>
-            {isSearching ? 'Buscando...' : <Search size={18} />}
+    <div className="min-h-screen bg-gray-50">
+      {/* Header - Update with new design and higher z-index */}
+      <header className="bg-white shadow-md sticky top-0 z-50">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate(-1)}
+            className="mr-2"
+          >
+            <ArrowLeft size={20} />
           </Button>
+          <h1 className="text-xl font-bold">Solicitações de Amizade</h1>
+          {profile && (
+            <div className="hidden sm:block ml-4">
+              <p className="text-sm font-medium">{profile.full_name || profile.username}</p>
+              <p className="text-xs opacity-80">@{profile.username}</p>
+            </div>
+          )}
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        {/* Search Input */}
+        <div className="mb-4">
+          <div className="relative">
+            <Input
+              type="search"
+              placeholder="Buscar por nome de usuário, nome ou email"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+            <Search size={16} className="absolute left-3 top-2.5 text-gray-400" onClick={handleSearch} style={{cursor: 'pointer'}} />
+          </div>
         </div>
 
-        {searchResults.length > 0 && (
-          <div className="mt-4 space-y-2">
-            {searchResults.map(profile => (
-              <Card key={profile.id} className="p-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarImage src={profile.avatar_url || ''} />
-                    <AvatarFallback>{profile.username?.[0]?.toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{profile.full_name || profile.username}</p>
-                    <p className="text-sm text-gray-500">@{profile.username}</p>
-                  </div>
-                </div>
-                <Button variant="outline" size="icon" disabled={isSearching}>
-                  <UserPlus size={18} />
-                </Button>
-              </Card>
-            ))}
-          </div>
+        {/* Search Results */}
+        {searchTerm && searchResults.length > 0 && (
+          <Card className="mb-4">
+            <CardContent className="p-4">
+              <h2 className="text-lg font-semibold mb-2">Resultados da Busca</h2>
+              {searching ? (
+                <p>Buscando...</p>
+              ) : (
+                <ul className="space-y-2">
+                  {searchResults.map((user) => (
+                    <li key={user.id} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Avatar className="w-8 h-8 mr-2">
+                          <AvatarImage src={user.avatar_url || undefined} alt={user.username} />
+                          <AvatarFallback>{user.full_name?.charAt(0) || user.username?.charAt(0) || "U"}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium">{user.full_name || user.username}</p>
+                          <p className="text-xs text-gray-500">@{user.username}</p>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => handleSendRequest(user.id)}>
+                        Adicionar
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
         )}
-      </div>
 
-      <div>
-        <h2 className="text-xl font-semibold mb-2">Solicitações pendentes</h2>
-        
-        {isLoading ? (
-          <p className="text-center py-4">Carregando...</p>
-        ) : requests.length === 0 ? (
-          <p className="text-center py-4 text-gray-500">Nenhuma solicitação pendente</p>
-        ) : (
-          <div className="space-y-3">
-            {requests.map(request => (
-              <Card key={request.id} className="p-3">
-                <div className="flex items-center gap-3 mb-3">
-                  <Avatar>
-                    <AvatarImage src={request.sender?.avatar_url || ''} />
-                    <AvatarFallback>{request.sender?.username?.[0]?.toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{request.sender?.full_name || request.sender?.username}</p>
-                    <p className="text-sm text-gray-500">@{request.sender?.username}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => handleRejectRequest(request.id)}
-                  >
-                    <X size={16} className="mr-1" /> Recusar
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    className="bg-sticker-purple hover:bg-sticker-purple/80"
-                    onClick={() => handleAcceptRequest(request.id, request.sender_id)}
-                  >
-                    <Check size={16} className="mr-1" /> Aceitar
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
+        {/* Friend Requests List */}
+        <Card>
+          <CardContent className="p-4">
+            <h2 className="text-lg font-semibold mb-2">Solicitações Pendentes</h2>
+            {loading ? (
+              <p>Carregando solicitações...</p>
+            ) : requests.length === 0 ? (
+              <p>Nenhuma solicitação pendente.</p>
+            ) : (
+              <ul className="space-y-2">
+                {requests.map((request) => (
+                  <li key={request.id} className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Avatar className="w-8 h-8 mr-2">
+                        <AvatarImage src={request.sender?.avatar_url || undefined} alt={request.sender?.username} />
+                        <AvatarFallback>{request.sender?.full_name?.charAt(0) || request.sender?.username?.charAt(0) || "U"}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium">{request.sender?.full_name || request.sender?.username}</p>
+                        <p className="text-xs text-gray-500">@{request.sender?.username}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleAccept(request.id)}>
+                        <Check size={20} />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleReject(request.id)}>
+                        <X size={20} />
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
