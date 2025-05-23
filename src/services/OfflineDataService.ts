@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Sticker } from "@/models/StickerModel";
 import { Profile } from "@/models/StickerTypes";
-import { updateProfile } from "@/services/ProfileService";
+// Remove the import of updateProfile as we'll use inline implementation
 
 // Database configuration
 const DB_NAME = 'figurinhas-offline-db';
@@ -250,8 +250,19 @@ export const syncPendingActions = async (): Promise<boolean> => {
         success = await updateSticker(action.userId, action.data);
       }
       else if (action.type === 'UPDATE_PROFILE') {
-        // Use the imported updateProfile function
-        success = !!(await updateProfile(action.data));
+        // Implement updateProfile inline instead of importing
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .update(action.data)
+            .eq('id', action.userId)
+            .select();
+          
+          success = !error && !!data;
+        } catch (err) {
+          console.error('Error updating profile:', err);
+          success = false;
+        }
       }
       
       if (success) {

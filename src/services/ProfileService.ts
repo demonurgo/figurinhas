@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Profile, ProfileWithStats, UserConnection } from "@/models/StickerTypes";
 
@@ -287,5 +286,31 @@ export const getFriendRequests = async (userId: string): Promise<any[]> => {
   } catch (error) {
     console.error('Error in getFriendRequests:', error);
     return [];
+  }
+};
+
+export const updateProfile = async (profileData: Partial<Profile>): Promise<Profile | null> => {
+  try {
+    if (!profileData.id) {
+      console.error('Cannot update profile without ID');
+      return null;
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(profileData)
+      .eq('id', profileData.id)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Error updating profile:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in updateProfile:', error);
+    return null;
   }
 };
