@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -11,35 +12,182 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 100vh;
+      min-height: 100vh;
       margin: 0;
       padding: 20px;
       text-align: center;
-      background-color: #f0f0f5;
+      background-color: #f7f3ff;
       color: #333;
+    }
+    .container {
+      max-width: 600px;
+      width: 100%;
+    }
+    header {
+      margin-bottom: 32px;
     }
     h1 {
       color: #8a63d2;
       margin-bottom: 16px;
+      font-size: 28px;
     }
     p {
       margin-bottom: 24px;
-      max-width: 500px;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    .info {
+      margin-top: 16px;
+      background-color: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(138, 99, 210, 0.1);
+      margin-bottom: 20px;
+    }
+    .info h2 {
+      font-size: 18px;
+      margin-bottom: 12px;
+      color: #8a63d2;
+      display: flex;
+      align-items: center;
+    }
+    .info h2:before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #8a63d2;
+      margin-right: 8px;
+    }
+    .info ul {
+      text-align: left;
+      padding-left: 20px;
+      margin-bottom: 16px;
+    }
+    .info li {
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 24px;
     }
     button {
       background-color: #8a63d2;
       color: white;
       border: none;
-      padding: 12px 24px;
-      border-radius: 6px;
+      padding: 14px 24px;
+      border-radius: 8px;
       font-weight: 600;
       cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: #7450b9;
+    }
+    .secondary {
+      background-color: #f0f0f5;
+      color: #555;
+    }
+    .secondary:hover {
+      background-color: #e0e0e5;
+    }
+    .offline-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      color: #8a63d2;
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: #ff5252;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+    .status-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: #555;
+    }
+    
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 24px;
+      }
+      .info {
+        padding: 16px;
+      }
+      button {
+        padding: 12px 16px;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>Você está offline</h1>
-  <p>Parece que você está sem conexão com a internet. Algumas funcionalidades do álbum de figurinhas podem não estar disponíveis até que a conexão seja reestabelecida.</p>
-  <button onclick="window.location.reload()">Tentar novamente</button>
+  <div class="container">
+    <header>
+      <div class="offline-icon">📱</div>
+      <h1>Álbum de Figurinhas - Modo Offline</h1>
+      <div class="status">
+        <div class="status-indicator"></div>
+        <span class="status-text">Sem conexão com a internet</span>
+      </div>
+    </header>
+    
+    <div class="info">
+      <h2>O que você pode fazer offline:</h2>
+      <ul>
+        <li><strong>Ver suas figurinhas</strong> - Acesse todas as figurinhas já sincronizadas no seu dispositivo</li>
+        <li><strong>Marcar novas figurinhas</strong> - Adicione figurinhas à sua coleção normalmente</li>
+        <li><strong>Adicionar fotos</strong> - Tire fotos das suas figurinhas mesmo sem conexão</li>
+        <li><strong>Editar seu perfil</strong> - Atualize suas informações pessoais</li>
+      </ul>
+      <p>Suas alterações serão salvas localmente e sincronizadas automaticamente quando você voltar a ficar online.</p>
+    </div>
+    
+    <div class="info">
+      <h2>O que não está disponível offline:</h2>
+      <ul>
+        <li><strong>Figurinhas dos amigos</strong> - Não será possível ver coleções de outros usuários</li>
+        <li><strong>Solicitações de amizade</strong> - Enviar ou aceitar conexões requer internet</li>
+        <li><strong>Notificações</strong> - Você receberá atualizações apenas quando estiver online</li>
+      </ul>
+    </div>
+    
+    <div class="actions">
+      <button onclick="window.location = '/'">Continuar para o Álbum</button>
+      <button onclick="window.location.reload()" class="secondary">Verificar conexão</button>
+    </div>
+  </div>
+  
+  <script>
+    // Check periodically if connection is restored
+    setInterval(() => {
+      if (navigator.onLine) {
+        document.querySelector('.status-indicator').style.backgroundColor = '#4caf50';
+        document.querySelector('.status-text').textContent = 'Conexão restaurada!';
+        
+        // Wait 1 second then reload
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
+      }
+    }, 3000);
+  </script>
 </body>
 </html>
