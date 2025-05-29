@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -347,7 +346,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         toast({
           title: "Conta criada com sucesso!",
-          description: `Bem-vindo, ${name}!`,
+          description: `Bem-vindo, ${name}! Um email de confirmação foi enviado para ${email}.`,
         });
         return true;
       }

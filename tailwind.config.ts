@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -74,6 +73,12 @@ export default {
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
 			},
+			backgroundImage: {
+				'grid-pattern': 'radial-gradient(circle, #9b87f5 1px, transparent 1px)',
+			},
+			backgroundSize: {
+				'grid-pattern': '30px 30px',
+			},
 			keyframes: {
 				'accordion-down': {
 					from: {
@@ -94,12 +99,25 @@ export default {
 				'pulse-soft': {
 					'0%, 100%': { opacity: '1' },
 					'50%': { opacity: '0.8' },
+				},
+				'float': {
+					'0%': { transform: 'translateY(0) rotate(0deg)' },
+					'25%': { transform: 'translateY(-10px) rotate(5deg)' },
+					'50%': { transform: 'translateY(0) rotate(0deg)' },
+					'75%': { transform: 'translateY(10px) rotate(-5deg)' },
+					'100%': { transform: 'translateY(0) rotate(0deg)' }
+				},
+				'pulse-slow': {
+					'0%, 100%': { transform: 'scale(1)', opacity: '1' },
+					'50%': { transform: 'scale(1.05)', opacity: '0.9' },
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
-				'pulse-soft': 'pulse-soft 2s infinite'
+				'pulse-soft': 'pulse-soft 2s infinite',
+				'float': 'float 15s ease-in-out infinite',
+				'pulse-slow': 'pulse-slow 3s ease-in-out infinite'
 			}
 		}
 	},
