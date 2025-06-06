@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { Profile, ProfileWithStats, UserConnection } from "@/models/StickerTypes";
+import cacheManager from "@/hooks/useLocalCache";
 
 export const searchUsers = async (searchTerm: string): Promise<Profile[]> => {
   try {
@@ -29,77 +30,118 @@ export const searchUsers = async (searchTerm: string): Promise<Profile[]> => {
 };
 
 export const getUserConnections = async (userId: string): Promise<Profile[]> => {
+  const cacheKey = `user_connections_${userId}`;
+  const maxAge = 1000 * 60 * 5; // 5 minutos cache para conexões
+  
   try {
     console.log('Buscando conexões para o usuário:', userId);
     
-    // Buscar conexões onde o usuário é o user_id
-    const { data: outgoingConnections, error: outgoingError } = await supabase
-      .from('user_connections')
-      .select('connected_user_id')
-      .eq('user_id', userId);
+    // 1. Tentar cache primeiro
+    const cachedConnections = await cacheManager.get<Profile[]>('connections', cacheKey, maxAge);
+    
+    if (cachedConnections && cachedConnections.length >= 0) { // Permite array vazio em cache
+      console.log('🎯 Conexões carregadas do cache local');
       
-    // Buscar conexões onde o usuário é o connected_user_id
-    const { data: incomingConnections, error: incomingError } = await supabase
-      .from('user_connections')
-      .select('user_id')
-      .eq('connected_user_id', userId);
+      // Se offline, retorna cache
+      if (!navigator.onLine) {
+        return cachedConnections;
+      }
       
-    if (outgoingError) {
-      console.error('Erro ao buscar conexões de saída:', outgoingError);
+      // Se online, busca em background para atualizar
+      fetchAndCacheConnections(userId, cacheKey).catch(console.error);
+      return cachedConnections;
     }
     
-    if (incomingError) {
-      console.error('Erro ao buscar conexões de entrada:', incomingError);
-    }
+    // 2. Se não tem cache, busca do Supabase
+    return await fetchAndCacheConnections(userId, cacheKey);
     
-    console.log('Conexões de saída encontradas:', outgoingConnections?.length || 0);
-    console.log('Conexões de entrada encontradas:', incomingConnections?.length || 0);
-    
-    if ((!outgoingConnections || outgoingConnections.length === 0) && 
-        (!incomingConnections || incomingConnections.length === 0)) {
-      console.log('Nenhuma conexão encontrada para o usuário:', userId);
-      return [];
-    }
-    
-    // Combinar os dois conjuntos de IDs de usuários conectados
-    const connectedIdsSet = new Set<string>();
-    
-    // Adicionar IDs dos usuários para os quais este usuário tem conexões de saída
-    outgoingConnections?.forEach(conn => {
-      connectedIdsSet.add(conn.connected_user_id);
-    });
-    
-    // Adicionar IDs dos usuários que têm conexões com este usuário
-    incomingConnections?.forEach(conn => {
-      connectedIdsSet.add(conn.user_id);
-    });
-    
-    const connectedIds = Array.from(connectedIdsSet);
-    
-    console.log('IDs únicos de usuários conectados:', connectedIds);
-    
-    if (connectedIds.length === 0) {
-      return [];
-    }
-    
-    // Buscar perfis dos usuários conectados
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('id', connectedIds);
-      
-    if (profilesError) {
-      console.error('Erro ao buscar perfis das conexões:', profilesError);
-      return [];
-    }
-    
-    console.log('Perfis das conexões encontrados:', profiles?.length || 0);
-    
-    return profiles || [];
   } catch (error) {
     console.error('Erro em getUserConnections:', error);
+    
+    // Fallback para cache expirado
+    const fallbackCache = await cacheManager.get<Profile[]>('connections', cacheKey, Infinity);
+    return fallbackCache || [];
+  }
+};
+
+// Função auxiliar para buscar e cachear conexões
+const fetchAndCacheConnections = async (userId: string, cacheKey: string): Promise<Profile[]> => {
+  console.log('🌐 Buscando conexões do Supabase...');
+  
+  // Buscar conexões onde o usuário é o user_id
+  const { data: outgoingConnections, error: outgoingError } = await supabase
+    .from('user_connections')
+    .select('connected_user_id')
+    .eq('user_id', userId);
+    
+  // Buscar conexões onde o usuário é o connected_user_id
+  const { data: incomingConnections, error: incomingError } = await supabase
+    .from('user_connections')
+    .select('user_id')
+    .eq('connected_user_id', userId);
+    
+  if (outgoingError) {
+    console.error('Erro ao buscar conexões de saída:', outgoingError);
+  }
+  
+  if (incomingError) {
+    console.error('Erro ao buscar conexões de entrada:', incomingError);
+  }
+  
+  console.log('Conexões de saída encontradas:', outgoingConnections?.length || 0);
+  console.log('Conexões de entrada encontradas:', incomingConnections?.length || 0);
+  
+  if ((!outgoingConnections || outgoingConnections.length === 0) && 
+      (!incomingConnections || incomingConnections.length === 0)) {
+    console.log('Nenhuma conexão encontrada para o usuário:', userId);
+    
+    // Cachear resultado vazio também
+    await cacheManager.set('connections', cacheKey, [], 1000 * 60 * 10); // 10min cache
     return [];
   }
+  
+  // Combinar os dois conjuntos de IDs de usuários conectados
+  const connectedIdsSet = new Set<string>();
+  
+  // Adicionar IDs dos usuários para os quais este usuário tem conexões de saída
+  outgoingConnections?.forEach(conn => {
+    connectedIdsSet.add(conn.connected_user_id);
+  });
+  
+  // Adicionar IDs dos usuários que têm conexões com este usuário
+  incomingConnections?.forEach(conn => {
+    connectedIdsSet.add(conn.user_id);
+  });
+  
+  const connectedIds = Array.from(connectedIdsSet);
+  
+  console.log('IDs únicos de usuários conectados:', connectedIds);
+  
+  if (connectedIds.length === 0) {
+    await cacheManager.set('connections', cacheKey, [], 1000 * 60 * 10); // 10min cache
+    return [];
+  }
+  
+  // Buscar perfis dos usuários conectados
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', connectedIds);
+    
+  if (profilesError) {
+    console.error('Erro ao buscar perfis das conexões:', profilesError);
+    throw profilesError;
+  }
+  
+  console.log('Perfis das conexões encontrados:', profiles?.length || 0);
+  
+  const connections = profiles || [];
+  
+  // Salvar no cache
+  await cacheManager.set('connections', cacheKey, connections, 1000 * 60 * 10); // 10min cache
+  console.log('💾 Conexões salvas no cache');
+  
+  return connections;
 };
 
 export const addConnection = async (userId: string, connectionId: string): Promise<boolean> => {
